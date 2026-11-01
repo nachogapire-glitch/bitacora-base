@@ -249,6 +249,10 @@ table.nums td.warn{color:var(--warn);font-weight:600}
 .marg.neg{border-left-color:var(--danger)} .marg.neg b{color:var(--danger)}
 .marg.lowm{border-left-color:var(--warn)} .marg.lowm b{color:var(--warn)}
 .marg.okm b{color:var(--ok)}
+.gtitle{font-family:var(--f-display);font-size:18px;font-weight:600;margin:12px 0 6px;display:flex;align-items:center;gap:6px}
+.gtitle:first-child{margin-top:4px}
+.gchips{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;margin:2px 0 8px}
+.marg .dot{margin-right:6px}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1035,6 +1039,7 @@ function parseLoose(text,order,unit){
   return {pts:parsePts(pts.map(p=>p.join(' ')).join('\n')),unit:u};
 }
 const SKULL=`<svg class="skull" viewBox="0 0 64 64" aria-label="Peligro" role="img"><path d="M32 4C17 4 7 14 7 28c0 8 4 13 9 16v8c0 3 2 5 5 5h3v-6h4v6h8v-6h4v6h3c3 0 5-2 5-5v-8c5-3 9-8 9-16C57 14 47 4 32 4z" fill="currentColor"/><circle cx="22" cy="29" r="7" fill="var(--surface)"/><circle cx="42" cy="29" r="7" fill="var(--surface)"/><path d="M32 36l-4 8h8z" fill="var(--surface)"/></svg>`;
+function suitColor(x){const l=suitList();const i=l.indexOf(x);return ['var(--c1)','var(--c2)','var(--c3)','var(--c4)'][i<0?3:i%4];}
 function wallXAt(T,d){if(d<=T[0][1])return T[0][0];for(let i=1;i<T.length;i++){if(T[i][1]>=d){const a=T[i-1],b=T[i];if(b[1]===a[1])return a[0];return a[0]+(b[0]-a[0])*((d-a[1])/(b[1]-a[1]));}}return null;}
 function advAt(P,d){const i=P.dr.findIndex(v=>v>=d);if(i<0)return null;if(i===0)return P.hd[0];return P.hd[i-1]+(P.hd[i]-P.hd[i-1])*((d-P.dr[i-1])/((P.dr[i]-P.dr[i-1])||1));}
 function hclearance(P,T){const maxD=Math.max(...T.map(p=>p[1]));const top=Math.min(maxD,P.dr[P.dr.length-1]);let min=Infinity,at=null;
@@ -1075,7 +1080,8 @@ async function viewTerrain(){
       <div class="actions">${S.canWrite||!S.db?`<button class="btn primary" id="tSave">Guardar pared</button>`:''}${saved&&S.canWrite?'<span id="tDelZone"><button class="btn danger small" id="tDel">Borrar pared</button></span>':''}<span class="saved" id="tMsg"></span></div>
     </section>
     <section class="panel"><h2>Comparar con</h2><div class="modebar">${wallSegs()}</div>
-      <div class="toolbar">${suitSelect('tsu',S.suit,all)}
+      <div class="modebar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
+      <div class="toolbar">
         <select id="tEx" aria-label="Exit"><option value="">Todos los exits</option>${exits.map(([k,v])=>`<option value="${esc(k)}" ${S.tExit===k?'selected':''}>${esc(k)} · ${v.length}</option>`).join('')}</select></div>
       <label class="chk2"><input type="checkbox" id="tIncl" ${S.tInclEx?'checked':''} ${manual?'disabled':''}> Incluir saltos marcados como «no cuenta» (recomendado: el peor caso es el que importa)</label>
       <details class="picker tpick" ${S.tPickOpen?'open':''}><summary class="btn small">${manual?`Saltos elegidos a mano: ${pool.length}`:'Elegir saltos a mano'}</summary>
@@ -1106,7 +1112,7 @@ async function viewTerrain(){
   app.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{S.wMode=b.dataset.wm;rerender();});
   $('#tName').oninput=e=>{S.tName=e.target.value;};
   $('#tLink').onchange=e=>{S.tExitLink=e.target.value;};
-  $('#tsu').onchange=e=>{S.suit=e.target.value;rerender();};
+  app.querySelectorAll('[data-tsu]').forEach(btn=>btn.onclick=()=>{S.suit=btn.dataset.tsu;rerender();});
   $('#tEx').onchange=e=>{S.tExit=e.target.value;rerender();};
   $('#tIncl').onchange=e=>{S.tInclEx=e.target.checked;rerender();};
   app.querySelectorAll('[data-ts]').forEach(b=>b.onclick=()=>{S.tShow=b.dataset.ts;rerender();});
@@ -1127,17 +1133,18 @@ async function viewTerrain(){
   const ok=res.filter(r=>r.min!=null).sort((a,b)=>a.min-b.min);
   const worst=ok[0],best=ok[ok.length-1];
   const cls=m=>m==null?'':m<0?'worst':m<50?'warn':'';
-  // resumen
-  const avgMin=ok.length?ok.reduce((s,r)=>s+r.min,0)/ok.length:null;const neg=ok.filter(r=>r.min<0).length;
-  $('#tSummary').innerHTML=ok.length?`<div class="tiles t3">
-    <div class="tile ${worst.min<0?'bad':''}"><div class="label">Peor margen ${H?'horizontal':'vertical'}</div><b>${fmt(worst.min)}<i>m</i></b><span class="note">#${worst.j._n} ${esc(worst.j.exitName||'')} · ${H?'al caer':'a'} ${fmt(worst.at)} m</span></div>
-    <div class="tile"><div class="label">Margen medio</div><b>${fmt(avgMin)}<i>m</i></b></div>
-    <div class="tile"><div class="label">Mejor margen</div><b>${fmt(best.min)}<i>m</i></b><span class="note">#${best.j._n} ${esc(best.j.exitName||'')}</span></div></div>
-    ${(()=>{const n=ok.length,low=ok.filter(r=>r.min>=0&&r.min<50).length,safe=n-neg-low,pc=x=>fmt(100*x/n,0)+' %';
-    return `<div class="risk ${neg?'bad':low?'mid':'ok'}">${neg?SKULL:''}<div><p class="riskt">${neg?`Con ${neg} de tus ${n} saltos habrías ${H?'tocado la pared':'pasado por debajo de la pared'} en algún punto del perfil.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos tus saltos elegidos pasan con más de 50 m de margen.'}</p>
-      <div class="riskbar"><span class="r1" style="width:${100*neg/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div>
-      <div class="riskleg"><span class="r1">Choque: <b>${pc(neg)}</b> (${neg})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Margen de más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div>
-      <p class="note" style="margin-top:4px">Porcentaje de tus saltos que habrían chocado o ido muy justos si los hubieras volado igual en esta pared. No es la probabilidad real de matarte: eso depende de tu salida, del viento y de cómo vueles ese día.</p></div></div>`;})()}`:'<p class="note">Ningún salto llega hasta los puntos del perfil antes de abrir.</p>';
+  // resumen (por traje si se comparan los dos)
+  const groups=(()=>{if(S.suit||S.tPick&&S.tPick.length)return [{name:S.suit||'',color:S.suit?suitColor(S.suit):'var(--ink)',list:ok}];const m={};for(const r of ok){const k=r.j.suit||'Sin traje';(m[k]=m[k]||[]).push(r);}const ks=Object.keys(m).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));return ks.length>1?ks.map(k=>({name:k,color:suitColor(k),list:m[k]})):[{name:ks[0]||'',color:'var(--ink)',list:ok}];})();
+  const multi=groups.length>1;
+  const blockHtml=g=>{const L=g.list;if(!L.length)return '';const w=L[0],b=L[L.length-1],n=L.length,ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',avgM=L.reduce((s,r)=>s+r.min,0)/n;
+    return `${multi?`<h3 class="gtitle"><span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${n} salto${n===1?'':'s'}</h3>`:''}<div class="tiles t3">
+    <div class="tile ${w.min<0?'bad':''}"><div class="label">Peor margen ${H?'horizontal':'vertical'}</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')} · ${H?'al caer':'a'} ${fmt(w.at)} m</span></div>
+    <div class="tile"><div class="label">Margen medio</div><b>${fmt(avgM)}<i>m</i></b></div>
+    <div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>
+    <div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(g.name):''} habrías ${H?'tocado la pared':'pasado por debajo de la pared'} en algún punto del perfil.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m de margen.'}</p>
+      <div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div>
+      <div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Margen de más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
+  $('#tSummary').innerHTML=ok.length?groups.map(blockHtml).join('')+`<p class="note" style="margin-top:4px">Porcentaje de tus saltos que habrían chocado o ido muy justos si los hubieras volado igual en esta pared. No es la probabilidad real de matarte: eso depende de tu salida, del viento y de cómo vueles ese día.</p>`:'<p class="note">Ningún salto llega hasta los puntos del perfil antes de abrir.</p>';
   // punto a punto
   if(!H){
   $('#tPts').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th class="r">Distancia</th><th class="r">Pared</th><th class="r">Tu media</th><th class="r">Peor</th><th class="r">Margen peor</th><th class="r">Margen medio</th></tr></thead><tbody>${T.map(([x,y])=>{const ds=res.map(r=>dropAt(r.P,x)).filter(v=>v!=null);if(!ds.length)return `<tr><td class="r">${fmt(x)} m</td><td class="r">${fmt(y)} m</td><td class="r" colspan="4"><span class="muted">ningún salto llega aquí antes de abrir</span></td></tr>`;const av=ds.reduce((a,b)=>a+b,0)/ds.length,mx=Math.max(...ds);
@@ -1151,16 +1158,17 @@ async function viewTerrain(){
   $('#tJumps').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead><tbody>${ok.map(r=>`<tr><td><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`).join('')}</tbody></table></div>`;
   // gráfica
   const show=S.tShow||'worst';
-  let avgP=null;
-  if(ok.length){if(!H){const mx=Math.max(...ok.map(r=>r.P.reach));const xs=[],ys=[];for(let x=0;x<=mx;x+=Math.max(1,mx/250)){const v=ok.map(r=>dropAt(r.P,x)).filter(q=>q!=null);if(v.length<Math.max(1,ok.length/2))break;xs.push(x);ys.push(v.reduce((a,b)=>a+b,0)/v.length);}avgP={hd:xs,dr:ys,reach:xs[xs.length-1]||0};}
-    else{const md=Math.max(...ok.map(r=>r.P.dr[r.P.dr.length-1]));const ds=[],hs=[];for(let d=0;d<=md;d+=Math.max(1,md/250)){const v=ok.map(r=>advAt(r.P,d)).filter(q=>q!=null);if(v.length<Math.max(1,ok.length/2))break;ds.push(d);hs.push(v.reduce((a,b)=>a+b,0)/v.length);}avgP={hd:hs,dr:ds,reach:Math.max(0,...hs)};}}
-  const avgC=avgP&&avgP.hd.length>1?(H?hclearance(avgP,T):clearance(avgP,T)):null;
-  const pick=show==='worst'?worst:show==='best'?best:null;
-  const series=show==='all'?ok.slice().reverse().map(r=>({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:r===worst?'var(--danger)':r===best?'var(--ok)':'var(--pre)',w:r===worst||r===best?2.4:1.2}))
-    :show==='avg'?(avgP&&avgP.hd.length>1?[{xs:avgP.hd,ys:avgP.dr.map(v=>-v),color:'var(--c2)',w:3}]:[])
-    :(pick?[{xs:pick.P.hd,ys:pick.P.dr.map(v=>-v),color:show==='worst'?'var(--danger)':'var(--ok)',w:3}]:[]);
-  {const info=$('#tShowInfo');const c=show==='avg'?avgC:pick;const lbl={worst:'Peor salto',best:'Mejor salto',avg:'Media de tus saltos',all:'Todos'}[show];
-    if(info)info.innerHTML=show==='all'?'':c&&c.min!=null?`<div class="marg ${c.min<0?'neg':c.min<50?'lowm':'okm'}"><span>${lbl}${pick?`: <a href="#s-${pick.j.id}">#${pick.j._n} ${esc(pick.j.exitName||'Sin nombre')}</a> · ${fDate(pick.j.exitTime)}`:` (${ok.length} saltos)`}</span><span>Margen ${H?'horizontal':'vertical'} mínimo <b>${fmt(c.min)} m</b> ${H?'al caer':'a'} ${fmt(c.at)} m${c.min<0?' · chocarías':''}</span></div>`:'<p class="note">No hay datos suficientes para este margen.</p>';}
+  const avgOf=L=>{if(!L.length)return null;let P;if(!H){const mx=Math.max(...L.map(r=>r.P.reach));const xs=[],ys=[];for(let x=0;x<=mx;x+=Math.max(1,mx/250)){const v=L.map(r=>dropAt(r.P,x)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;xs.push(x);ys.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:xs,dr:ys,reach:xs[xs.length-1]||0};}
+    else{const md=Math.max(...L.map(r=>r.P.dr[r.P.dr.length-1]));const ds=[],hs=[];for(let d=0;d<=md;d+=Math.max(1,md/250)){const v=L.map(r=>advAt(r.P,d)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;ds.push(d);hs.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:hs,dr:ds,reach:Math.max(0,...hs)};}
+    return P.hd.length>1?{P,c:H?hclearance(P,T):clearance(P,T)}:null;};
+  const series=[];const infos=[];
+  for(const g of groups){const L=g.list;if(!L.length)continue;const w=L[0],b=L[L.length-1];
+    const colW=multi?g.color:'var(--danger)',colB=multi?g.color:'var(--ok)',colA=multi?g.color:'var(--c2)';
+    if(show==='all'){L.slice().reverse().forEach(r=>series.push({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:multi?g.color:(r===w?'var(--danger)':r===b?'var(--ok)':'var(--pre)'),w:multi?1.4:(r===w||r===b?2.4:1.2)}));infos.push(`<span class="gchip"><span class="dot" style="background:${multi?g.color:'var(--ink)'}"></span>${multi?esc(g.name)+': ':''}${L.length} saltos</span>`);continue;}
+    if(show==='avg'){const A=avgOf(L);if(A){series.push({xs:A.P.hd,ys:A.P.dr.map(v=>-v),color:colA,w:3});infos.push(margHtml(multi?g.name+' · media':'Media de tus saltos',null,A.c,L.length,g.color));}continue;}
+    const pk=show==='worst'?w:b;series.push({xs:pk.P.hd,ys:pk.P.dr.map(v=>-v),color:show==='worst'?colW:colB,w:3,dash:multi&&show==='best'?'':''});infos.push(margHtml((multi?g.name+' · ':'')+(show==='worst'?'peor salto':'mejor salto'),pk,pk,null,g.color));}
+  function margHtml(lbl,pk,c,n,color){if(!c||c.min==null)return `<p class="note">${esc(lbl)}: sin datos suficientes.</p>`;return `<div class="marg ${c.min<0?'neg':c.min<50?'lowm':'okm'}" style="${multi?`border-left-color:${color}`:''}"><span>${multi?`<span class="dot" style="background:${color}"></span>`:''}${esc(lbl.charAt(0).toUpperCase()+lbl.slice(1))}${pk?`: <a href="#s-${pk.j.id}">#${pk.j._n} ${esc(pk.j.exitName||'Sin nombre')}</a> · ${fDate(pk.j.exitTime)}`:n?` (${n} saltos)`:''}</span><span>Margen ${H?'horizontal':'vertical'} mínimo <b>${fmt(c.min)} m</b> ${H?'al caer':'a'} ${fmt(c.at)} m${c.min<0?' · chocarías':''}</span></div>`;}
+  {const info=$('#tShowInfo');if(info)info.innerHTML=show==='all'?`<div class="gchips">${infos.join('')}</div>`:infos.join('');}
   const draw=()=>multiChart($('#tChart'),{series,ground:{xs:T.map(p=>p[0]),ys:T.map(p=>-p[1])},xTitle:'distancia horizontal desde la salida (m)',yTitle:'metros por debajo de la salida',h:340,yMaxZero:true,label:'Saltos sobre el perfil del suelo',
     onHover:(v)=>{const r=$('#tRead');if(!r)return;if(v==null){r.innerHTML='';return;}const td=terrainAt(T,v);const ds=ok.map(q=>dropAt(q.P,v)).filter(x=>x!=null);
       r.innerHTML=`<span>a <b>${fmt(v)} m</b></span><span style="color:var(--ground-line)">pared <b>${td==null?'—':fmt(td)+' m'}</b></span>${ds.length?`<span>tu media <b>${fmt(ds.reduce((a,b)=>a+b,0)/ds.length)} m</b></span><span style="color:var(--danger)">peor <b>${fmt(Math.max(...ds))} m</b></span>${td!=null?`<span>margen peor <b>${fmt(td-Math.max(...ds))} m</b></span>`:''}`:''}`;}});
