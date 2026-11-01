@@ -895,6 +895,11 @@ function viewNumbers(){
       <div><div class="calcrow"><span class="calcq">Si caigo</span><label class="calcin"><input id="calcD" type="number" inputmode="decimal" min="1" step="1" value="${S.calcD??''}" placeholder="300" aria-label="Metros de caída"><span>m</span></label><span class="calcq">¿cuánto he avanzado?</span></div><div id="outD"></div></div>
     </div>
   </section>
+  <section class="panel impact"><h2>Impacto: ¿pasarías por encima? <span class="seg" role="group" aria-label="Qué dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ns="${k}" aria-pressed="${(S.nShow||'worst')===k}">${l}</button>`).join('')}</span></h2>
+    <div class="calcrow"><span class="calcq">Roca a</span><label class="calcin"><input id="impX" type="number" inputmode="decimal" min="0" step="1" value="${S.impX??''}" placeholder="60" aria-label="Distancia de la roca"><span>m</span></label><span class="calcq">de distancia y</span><label class="calcin"><input id="impY" type="number" inputmode="decimal" min="1" step="1" value="${S.impY??''}" placeholder="250" aria-label="Caída hasta la roca"><span>m</span></label><span class="calcq">por debajo</span></div>
+    <p class="note">Una repisa o roca que sale esa distancia desde la pared a esa altura por debajo de la salida. Se compara con los saltos que estás viendo arriba${S.suit?'':', separando Freak 5 y Onisei'}.</p>
+    <div id="impSum"></div><div class="chartbox" id="impChart"></div><div class="readout" id="impRead"></div>
+  </section>
   <div class="two wide">
     <section class="panel"><h2>Media, mejor y peor ${modeSeg()}</h2>${numbersTable(pool,null)}</section>
     <section class="panel"><h2>Ranking <select id="rankSel" aria-label="Ordenar por" class="inline">${RANKABLE.map(m=>`<option value="${m.k}" ${m.k===M.k?'selected':''}>${m.l}${m.g?'':''}</option>`).join('')}</select></h2>
@@ -930,6 +935,32 @@ function viewNumbers(){
       ${use.length>r.length?`<p class="note">${use.length-r.length===1?'1 salto abrió antes de llegar y no cuenta.':`${use.length-r.length} saltos abrieron antes de llegar y no cuentan.`}</p>`:''}`;};
   let calcTA,calcTD;$('#calcA').oninput=()=>{clearTimeout(calcTA);calcTA=setTimeout(()=>runCalc(true),400);};$('#calcD').oninput=()=>{clearTimeout(calcTD);calcTD=setTimeout(()=>runCalc(false),400);};
   runCalc(true);runCalc(false);
+  const runImp=async()=>{const X=parseFloat(String($('#impX').value).replace(',','.')),Y=parseFloat(String($('#impY').value).replace(',','.'));S.impX=isFinite(X)?X:null;S.impY=isFinite(Y)?Y:null;
+    const sum=$('#impSum'),ch=$('#impChart');if(!sum)return;
+    if(!(isFinite(X)&&X>=0&&isFinite(Y)&&Y>0)){sum.innerHTML='<p class="note">Escribe la distancia y la caída de la roca para ver si pasarías.</p>';ch.innerHTML='';return;}
+    sum.innerHTML='<p class="note">Calculando…</p>';const ps=await getProfs();if(route().v!=='stats'||!document.body.contains(sum))return;
+    const T=[[0,Y],[Math.max(X,0.5),Y]];const res=[];for(const {j,P} of ps){const c=clearance(P,T);if(c.min!=null)res.push({j,P,...c});}
+    res.sort((a,b)=>a.min-b.min);
+    if(!res.length){sum.innerHTML='<p class="note">Ninguno de estos saltos llega a esa distancia antes de abrir.</p>';ch.innerHTML='';return;}
+    const gm={};for(const r of res){const k=S.suit?(S.suit==='-'?'Sin traje':S.suit):(r.j.suit||'Sin traje');(gm[k]=gm[k]||[]).push(r);}
+    const keys=Object.keys(gm).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));const multi=keys.length>1;
+    const blk=k=>{const L=gm[k],n=L.length,w=L[0],b=L[n-1],ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',av=L.reduce((s,r)=>s+r.min,0)/n;
+      return `${multi?`<h3 class="gtitle"><span class="dot" style="background:${suitColor(k)}"></span>${esc(k)} · ${n} salto${n===1?'':'s'}</h3>`:''}<div class="tiles t3"><div class="tile ${w.min<0?'bad':''}"><div class="label">Peor margen</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')}</span></div><div class="tile"><div class="label">Margen medio</div><b>${fmt(av)}<i>m</i></b></div><div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>
+      <div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(k):''} habrías chocado con esa roca.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m por encima.'}</p><div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div><div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
+    sum.innerHTML=keys.map(blk).join('')+'<p class="note">Margen = metros que pasabas por encima de la roca. Es lo que habría pasado volando como en esos saltos, no la probabilidad real de chocar.</p>';
+    const show=S.nShow||'worst';const series=[];
+    const avgOf=L=>{const mx=Math.max(...L.map(r=>r.P.reach));const xs=[],ys=[];for(let x=0;x<=mx;x+=Math.max(1,mx/250)){const v=L.map(r=>dropAt(r.P,x)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;xs.push(x);ys.push(-(v.reduce((a,b)=>a+b,0)/v.length));}return xs.length>1?{xs,ys}:null;};
+    for(const k of keys){const L=gm[k],col=multi?suitColor(k):null;
+      if(show==='all')L.slice().reverse().forEach(r=>series.push({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:col||(r===L[0]?'var(--danger)':r===L[L.length-1]?'var(--ok)':'var(--pre)'),w:col?1.4:(r===L[0]||r===L[L.length-1]?2.4:1.2)}));
+      else if(show==='avg'){const A=avgOf(L);if(A)series.push({...A,color:col||'var(--c2)',w:3});}
+      else{const pk=show==='worst'?L[0]:L[L.length-1];series.push({xs:pk.P.hd,ys:pk.P.dr.map(v=>-v),color:col||(show==='worst'?'var(--danger)':'var(--ok)'),w:3});}}
+    const xMax=Math.max(X*1.6,X+150);const sr=series.map(se=>{let n=se.xs.findIndex(v=>v>xMax);if(n<0)n=se.xs.length;return {...se,xs:se.xs.slice(0,n),ys:se.ys.slice(0,n)};}).filter(se=>se.xs.length>1);
+    const draw=()=>multiChart(ch,{series:sr,ground:{xs:[0,Math.max(X,0.5)],ys:[-Y,-Y]},xTitle:'distancia desde la salida (m)',yTitle:'metros por debajo de la salida',h:300,yMaxZero:true,label:'Saltos frente a la roca',
+      onHover:v=>{const r=$('#impRead');if(!r)return;if(v==null){r.innerHTML='';return;}const ds=res.map(q=>dropAt(q.P,v)).filter(x=>x!=null);r.innerHTML=`<span>a <b>${fmt(v)} m</b></span>${v<=X?`<span style="color:var(--ground-line)">roca <b>${fmt(Y)} m</b></span>`:''}${ds.length?`<span>tu media <b>${fmt(ds.reduce((a,b)=>a+b,0)/ds.length)} m</b></span><span style="color:var(--danger)">peor <b>${fmt(Math.max(...ds))} m</b></span>`:''}`;}});
+    draw();S._impDraw=draw;S.redraw=()=>{draw();S._yearsDraw&&S._yearsDraw();};};
+  let impT;['#impX','#impY'].forEach(sel=>{$(sel).oninput=()=>{clearTimeout(impT);impT=setTimeout(runImp,450);};});
+  app.querySelectorAll('[data-ns]').forEach(b=>b.onclick=()=>{S.nShow=b.dataset.ns;app.querySelectorAll('[data-ns]').forEach(x=>x.setAttribute('aria-pressed',x===b));runImp();});
+  runImp();
   $('#suitSel').onchange=e=>{S.suit=e.target.value;viewNumbers();};
   $('#rankSel').onchange=e=>{S.rankBy=e.target.value;const y=scrollY;viewNumbers();scrollTo(0,y);};
   app.querySelectorAll('[data-exit]').forEach(x=>x.onclick=ev=>{ev.preventDefault();S.numScope=x.dataset.exit;viewNumbers();scrollTo(0,0);});
@@ -943,7 +974,7 @@ function viewNumbers(){
       for(const v of yt)s+=`<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l-6}" y="${Y(v)+3.5}" text-anchor="end">${v}</text>`;
       ys.forEach((y,k)=>{const w=Math.min(56,bw*.64),x=m.l+k*bw+(bw-w)/2;s+=`<rect x="${x}" y="${Y(years[y])}" width="${w}" height="${H-m.b-Y(years[y])}" rx="3" fill="var(--ff)"/><text x="${x+w/2}" y="${Y(years[y])-5}" text-anchor="middle" style="fill:var(--ink)">${years[y]}</text><text x="${x+w/2}" y="${H-8}" text-anchor="middle">${y}</text>`;});
       el.innerHTML=s+'</svg>';};
-    drawYears();S.redraw=drawYears;}
+    drawYears();S._yearsDraw=drawYears;S.redraw=()=>{drawYears();S._impDraw&&route().v==='stats'&&$('#impChart')&&$('#impChart').firstChild&&S._impDraw();};}
 }
 
 const CC=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)'];
@@ -1183,7 +1214,7 @@ function priorHtml(pr){return `<section class="panel" style="margin-top:16px"><h
 function bindPrior(){const b=$('#priorSave');if(!b)return;b.onclick=async()=>{const v=Math.max(0,Math.round(+$('#prior').value||0));const su=[...new Set($('#suits').value.split(',').map(x=>x.trim()).filter(Boolean))];$('#priorMsg').textContent='Guardando…';try{await S.db.doc('settings/main').set({prior:v,suits:su});$('#priorMsg').textContent='Guardado';}catch(e){$('#priorMsg').textContent='No se pudo guardar';}};}
 
 function render(){
-  const r=route();CURSORS=[];S.onCursor=null;S.redraw=null;
+  const r=route();CURSORS=[];S.onCursor=null;S.redraw=null;S._impDraw=null;S._yearsDraw=null;
   [['saltos',r.v==='list'||r.v==='jump'],['stats',r.v==='stats'],['cmp',r.v==='compare'],['terr',r.v==='terrain']].forEach(([k,on])=>{const t=$('#tab-'+k);if(on)t.setAttribute('aria-current','page');else t.removeAttribute('aria-current');});
   $('#impBtn').hidden=S.dbState==='ok'&&!S.canWrite;
   if(r.v==='stats')viewNumbers();else if(r.v==='compare')viewCompare();else if(r.v==='terrain')viewTerrain();else if(r.v==='jump'){if(S._lastJump!==r.id){S.pick=null;S.cursor=null;S._lastJump=r.id;}viewJump(r.id);}else{S._lastJump=null;viewList();}
