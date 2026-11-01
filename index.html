@@ -1046,7 +1046,7 @@ async function viewTerrain(){
   if(S.tSel&&S.tSel!=='new'&&!list.some(t=>t.id===S.tSel))S.tSel=null;
   if(!S.tSel||(S.tSel==='new'&&!S.tUserNew&&list.length)){S.tSel=list.length?list[0].id:'new';}
   const saved=S.tSel==='new'?null:list.find(x=>x.id===S.tSel);
-  if(!S.tRows||S.tRowsFor!==S.tSel){S.tRows=saved?(saved.points||[]).map(p=>[String(p[0]),String(p[1])]):[['',''],['',''],['','']];S.tRowsFor=S.tSel;S.tName=saved?saved.name:'';S.tExitLink=saved?(saved.exit||''):'';if(saved&&saved.exit)S.tExit=saved.exit;}
+  if(!S.tRows||S.tRowsFor!==S.tSel){S.tRows=saved?(saved.points||[]).map(p=>[String(p[0]),String(p[1])]):[['',''],['',''],['','']];S.tRowsFor=S.tSel;S.tName=saved?saved.name:'';S.tExitLink=saved?(saved.exit||''):'';}
   const T=parsePts(S.tRows.map(r=>r.join(' ')).join('\n'));
   let pool=bySuit(all,S.suit);if(S.tExit)pool=pool.filter(j=>j.exitName===S.tExit);if(!S.tInclEx)pool=pool.filter(j=>!j.excluded);
   if(S.tPick)S.tPick=S.tPick.filter(id=>id==='__none__'||all.some(j=>j.id===id));
@@ -1105,7 +1105,7 @@ async function viewTerrain(){
   app.querySelectorAll('[data-wo]').forEach(b=>b.onclick=()=>{S.wOrder=b.dataset.wo;rerender();});
   app.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{S.wMode=b.dataset.wm;rerender();});
   $('#tName').oninput=e=>{S.tName=e.target.value;};
-  $('#tLink').onchange=e=>{S.tExitLink=e.target.value;if(e.target.value){S.tExit=e.target.value;rerender();}};
+  $('#tLink').onchange=e=>{S.tExitLink=e.target.value;};
   $('#tsu').onchange=e=>{S.suit=e.target.value;rerender();};
   $('#tEx').onchange=e=>{S.tExit=e.target.value;rerender();};
   $('#tIncl').onchange=e=>{S.tInclEx=e.target.checked;rerender();};
