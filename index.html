@@ -258,6 +258,7 @@ table.nums td.warn{color:var(--warn);font-weight:600}
 .tag.mkt{background:var(--sunk);color:var(--ink)}
 table.nums tr.mk td{background:color-mix(in srgb,var(--c2) 10%,transparent);font-weight:600}
 table.nums td .dot{margin-right:6px}
+.pts2 small.mg{display:block;font-size:11.5px;font-weight:600;opacity:.95}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1180,16 +1181,17 @@ async function viewTerrain(){
       <div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div>
       <div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Margen de más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
   $('#tSummary').innerHTML=ok.length?groups.map(blockHtml).join('')+`<p class="note" style="margin-top:4px">Porcentaje de tus saltos que habrían chocado o ido muy justos si los hubieras volado igual en esta pared. No es la probabilidad real de matarte: eso depende de tu salida, del viento y de cómo vueles ese día.</p>`:'<p class="note">Ningún salto llega hasta los puntos del perfil antes de abrir.</p>';
-  // punto a punto
-  if(!H){
-  $('#tPts').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th class="r">Distancia</th><th class="r">Pared</th><th class="r">Tu media</th><th class="r">Peor</th><th class="r">Margen peor</th><th class="r">Margen medio</th></tr></thead><tbody>${T.map(([x,y])=>{const ds=res.map(r=>dropAt(r.P,x)).filter(v=>v!=null);if(!ds.length)return `<tr><td class="r">${fmt(x)} m</td><td class="r">${fmt(y)} m</td><td class="r" colspan="4"><span class="muted">ningún salto llega aquí antes de abrir</span></td></tr>`;const av=ds.reduce((a,b)=>a+b,0)/ds.length,mx=Math.max(...ds);
-    return `<tr><td class="r">${fmt(x)} m</td><td class="r">${fmt(y)} m</td><td class="r">${fmt(av)} m</td><td class="r">${fmt(mx)} m</td><td class="r ${cls(y-mx)}">${fmt(y-mx)} m</td><td class="r ${cls(y-av)}">${fmt(y-av)} m</td></tr>`;}).join('')}</tbody></table></div>
-    <p class="note">Pared, media y peor son metros por debajo de la salida. Margen = pared − tu caída; en rojo si es negativo y en ámbar si es menor de 50 m.</p>`;
-  }else{
-  $('#tPts').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th class="r">Caída</th><th class="r">Pared a</th><th class="r">Tu media</th><th class="r">Peor</th><th class="r">Margen peor</th><th class="r">Margen medio</th></tr></thead><tbody>${T.map(([x,y])=>{const ds=res.map(r=>advAt(r.P,y)).filter(v=>v!=null);if(!ds.length)return `<tr><td class="r">${fmt(y)} m</td><td class="r">${fmt(x)} m</td><td class="r" colspan="4"><span class="muted">ningún salto cae tanto antes de abrir</span></td></tr>`;const av=ds.reduce((a,b)=>a+b,0)/ds.length,mn=Math.min(...ds);
-    return `<tr><td class="r">${fmt(y)} m</td><td class="r">${fmt(x)} m</td><td class="r">${fmt(av)} m</td><td class="r">${fmt(mn)} m</td><td class="r ${cls(mn-x)}">${fmt(mn-x)} m</td><td class="r ${cls(av-x)}">${fmt(av-x)} m</td></tr>`;}).join('')}</tbody></table></div>
-    <p class="note">Para cada caída de la pared: a qué distancia está la roca y a qué distancia ibas tú. Margen = tu distancia − la de la pared; en rojo si es negativo y en ámbar si es menor de 50 m.</p>`;
-  }
+  // punto a punto (dos formas de leerlo)
+  {const pm=S.ptMode||(H?'caida':'dist');
+    const seg=`<div class="modebar"><span class="seg" role="group" aria-label="Cómo leer"><button type="button" data-pm="caida" aria-pressed="${pm==='caida'}"><b>Al caer…</b><small>¿cuánto has avanzado?</small></button><button type="button" data-pm="dist" aria-pressed="${pm==='dist'}"><b>Al avanzar…</b><small>¿cuánto has caído?</small></button></span></div>`;
+    const cell=(v,m)=>`<td class="r ${cls(m)}">${fmt(v)} m <small class="mg">${m>=0?'+':''}${fmt(m)}</small></td>`;
+    let rows;
+    if(pm==='caida'){rows=T.map(([x,y])=>{const ds=res.map(r=>advAt(r.P,y)).filter(v=>v!=null);if(!ds.length)return `<tr><td class="r">${fmt(y)} m</td><td class="r">${fmt(x)} m</td><td class="r muted" colspan="2">abres antes</td></tr>`;const av=ds.reduce((a,b)=>a+b,0)/ds.length,mn=Math.min(...ds);return `<tr><td class="r">${fmt(y)} m</td><td class="r">${fmt(x)} m</td>${cell(mn,mn-x)}${cell(av,av-x)}</tr>`;}).join('');
+      rows=`<thead><tr><th class="r">Al caer</th><th class="r">La pared está a</th><th class="r">Tú avanzas · peor</th><th class="r">Tú avanzas · media</th></tr></thead><tbody>${rows}</tbody>`;}
+    else{rows=T.map(([x,y])=>{const ds=res.map(r=>dropAt(r.P,x)).filter(v=>v!=null);if(!ds.length)return `<tr><td class="r">${fmt(x)} m</td><td class="r">${fmt(y)} m</td><td class="r muted" colspan="2">abres antes</td></tr>`;const av=ds.reduce((a,b)=>a+b,0)/ds.length,mx=Math.max(...ds);return `<tr><td class="r">${fmt(x)} m</td><td class="r">${fmt(y)} m</td>${cell(mx,y-mx)}${cell(av,y-av)}</tr>`;}).join('');
+      rows=`<thead><tr><th class="r">Al avanzar</th><th class="r">La pared está</th><th class="r">Tú caes · peor</th><th class="r">Tú caes · media</th></tr></thead><tbody>${rows}</tbody>`;}
+    $('#tPts').innerHTML=seg+`<div class="tablewrap"><table class="nums pts2">${rows}</table></div><p class="note">${pm==='caida'?'Cuando has caído esos metros, cuánto te has separado de la salida. La pared está a esa distancia; si tú avanzas más, pasas.':'Cuando has avanzado esos metros, cuánto has caído. La pared está a esa profundidad; si tú caes menos, pasas.'} El número pequeño es el margen: verde de sobra, ámbar menos de 50 m, rojo choque.</p>`;
+    app.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{S.ptMode=b.dataset.pm;rerender();});}
   {const sh=S.tShow||'worst';const marked=new Map();
     if(sh==='worst'||sh==='best')for(const g of groups){const L=g.list;if(L.length)marked.set(sh==='worst'?L[0]:L[L.length-1],g);}
     const avgRows=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<tr class="mk"><td>${multi?`<span class="dot" style="background:${g.color}"></span>`:''}<b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">Marcado arriba</span></td><td class="r ${cls(av)}">${fmt(av)} m</td><td class="r">—</td><td class="r">—</td></tr>`;}).join(''):'';
