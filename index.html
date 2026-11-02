@@ -905,8 +905,8 @@ function viewNumbers(){
   </div>
   <section class="panel calc"><h2>¿A qué altura voy?${S.suit?'':' <span class="note" style="font-weight:400">elige un traje arriba para no mezclar Freak 5 y Onisei</span>'}</h2>
     <div class="two calc2">
-      <div><div class="calcrow"><span class="calcq">Si avanzo</span><label class="calcin"><input id="calcA" type="number" inputmode="decimal" min="1" step="1" value="${S.calcA??''}" placeholder="350" aria-label="Metros de avance"><span>m</span></label><span class="calcq">¿cuánto he caído?</span></div><div id="outA"></div></div>
       <div><div class="calcrow"><span class="calcq">Si caigo</span><label class="calcin"><input id="calcD" type="number" inputmode="decimal" min="1" step="1" value="${S.calcD??''}" placeholder="300" aria-label="Metros de caída"><span>m</span></label><span class="calcq">¿cuánto he avanzado?</span></div><div id="outD"></div></div>
+      <div><div class="calcrow"><span class="calcq">Si avanzo</span><label class="calcin"><input id="calcA" type="number" inputmode="decimal" min="1" step="1" value="${S.calcA??''}" placeholder="350" aria-label="Metros de avance"><span>m</span></label><span class="calcq">¿cuánto he caído?</span></div><div id="outA"></div></div>
     </div>
   </section>
   <section class="panel impact"><h2>Impacto: ¿pasarías por encima? <span class="seg" role="group" aria-label="Qué dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ns="${k}" aria-pressed="${(S.nShow||'worst')===k}">${l}</button>`).join('')}</span></h2>
