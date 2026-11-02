@@ -1265,8 +1265,8 @@ async function viewTerrain(){
   const T=parsePts(S.tRows.map(r=>r.join(' ')).join('\n'));
   let pool=bySuit(all,S.suit);if(S.tExit)pool=pool.filter(j=>j.exitName===S.tExit);if(!S.tInclEx)pool=pool.filter(j=>!j.excluded);
   if(S.tPick)S.tPick=S.tPick.filter(id=>id==='__none__'||all.some(j=>j.id===id));
-  const manual=!!(S.tPick&&S.tPick.length);if(manual)pool=all.filter(j=>S.tPick.includes(j.id));
-  const pickGroups=[...exitsOf(all),['Sin nombre',all.filter(j=>!j.exitName)]].filter(g=>g[1].length);
+  const manual=!!(S.tPick&&S.tPick.length);if(manual)pool=bySuit(all,S.suit).filter(j=>S.tPick.includes(j.id));
+  const allS=bySuit(all,S.suit);const pickGroups=[...exitsOf(allS),['Sin nombre',allS.filter(j=>!j.exitName)]].filter(g=>g[1].length);
   const exitsAll=exitsOf(all);const exits=exitsOf(bySuit(all,S.suit));
   const cols=S.wOrder==='cd'?[1,0]:[0,1];const colName=['Distancia','Caída'];
   const rowHtml=(r,i)=>`<tr><td class="r mono muted">${i+1}</td>${cols.map(c=>`<td><input class="pt" data-r="${i}" data-c="${c}" type="number" inputmode="decimal" step="any" min="0" value="${esc(r[c])}" aria-label="${colName[c]} punto ${i+1}"></td>`).join('')}<td><button class="xbtn" data-del="${i}" aria-label="Quitar punto ${i+1}">×</button></td></tr>`;
@@ -1345,7 +1345,7 @@ async function viewTerrain(){
   const worst=ok[0],best=ok[ok.length-1];
   const cls=m=>m==null?'':m<0?'worst':m<50?'warn':'';
   // resumen (por traje si se comparan los dos)
-  const groups=(()=>{if(S.suit||S.tPick&&S.tPick.length)return [{name:S.suit||'',color:S.suit?suitColor(S.suit):'var(--ink)',list:ok}];const m={};for(const r of ok){const k=r.j.suit||'Sin traje';(m[k]=m[k]||[]).push(r);}const ks=Object.keys(m).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));return ks.length>1?ks.map(k=>({name:k,color:suitColor(k),list:m[k]})):[{name:ks[0]||'',color:'var(--ink)',list:ok}];})();
+  const groups=(()=>{if(S.suit)return [{name:S.suit||'',color:S.suit?suitColor(S.suit):'var(--ink)',list:ok}];const m={};for(const r of ok){const k=r.j.suit||'Sin traje';(m[k]=m[k]||[]).push(r);}const ks=Object.keys(m).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));return ks.length>1?ks.map(k=>({name:k,color:suitColor(k),list:m[k]})):[{name:ks[0]||'',color:'var(--ink)',list:ok}];})();
   const multi=groups.length>1;
   const blockHtml=g=>{const L=g.list;if(!L.length)return '';const w=L[0],b=L[L.length-1],n=L.length,ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',avgM=L.reduce((s,r)=>s+r.min,0)/n;
     const head=multi?`<h3 class="gtitle"><span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${n} salto${n===1?'':'s'}</h3>`:'';
