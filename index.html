@@ -378,6 +378,14 @@ body::before{background:#13203F}
 .skull.sm{width:16px;height:16px;vertical-align:-3px;margin-right:3px}
 .onepick{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
 .onepick select{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px 10px;max-width:100%;width:100%}
+.recsuit{border-left:4px solid var(--rc);padding-left:10px;margin:6px 0 14px}
+.recgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+.recc{display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-radius:8px;padding:10px 12px;min-width:0}
+.recc b{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.05;color:var(--rc);font-variant-numeric:tabular-nums}
+.recc a{font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.recc .rsub{font-size:12px}
+.recc .btn{margin-top:6px;align-self:flex-start}
+@media (max-width:760px){.recgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.recc b{font-size:24px}}
 .mj-c{display:none}
 @media (max-width:760px){
   .mj-t{display:none}
@@ -1159,7 +1167,11 @@ async function viewCompare(){
   let phrase='';{const M=KEY.find(m=>m.k===crit[0])||{k:crit[0],l:crit[1],u:crit[0]==='glideAfter'?': 1':'m',d:crit[0]==='glideAfter'?2:0,b:crit[2]};const a=agg(sel,crit[0],crit[2]);
     if(a&&a.n>1){const diff=Math.abs(a.best.stats[crit[0]]-a.worst.stats[crit[0]]);phrase=`<p class="cmpsum">En <b>${crit[1].toLowerCase()}</b>, el mejor es <b style="color:${CC[sel.indexOf(a.best)]}">#${a.best._n} ${esc(a.best.exitName||'')}</b> (${valH(a.best.stats[crit[0]],M)}) y el peor <b style="color:${CC[sel.indexOf(a.worst)]}">#${a.worst._n} ${esc(a.worst.exitName||'')}</b> (${valH(a.worst.stats[crit[0]],M)}): <b>${fmt(diff,M.d)} ${M.u.trim()}</b> de diferencia.</p>`;}}
   const groups=[...exits,['Sin nombre',sAll.filter(j=>!j.exitName)]].filter(e=>e[1].length);
+  const RECS=[{k:'maxVh',l:'El más rápido',u:'km/h',d:0,b:'hi',sub:'velocidad horizontal máxima'},{k:'ffDist',l:'El más largo en distancia',u:'m',d:0,b:'hi',sub:'avance hasta la apertura'},{k:'ff',l:'El más largo en tiempo',u:'s',d:1,b:'hi',sub:'caída libre'},{k:'glideAfter',l:'El de mejor glide',u:': 1',d:2,b:'hi',sub:'planeo tras el 1:1'}];
+  const recHtml=suitList().map(su=>{const L=bySuit(all,su).filter(j=>!j.excluded);if(!L.length)return '';
+    return `<div class="recsuit" style="--rc:${suitColor(su)}"><h3 class="gtitle"><span class="dot" style="background:${suitColor(su)}"></span>${esc(su)} · ${L.length} saltos</h3><div class="recgrid">${RECS.map(M=>{const a=agg(L,M.k,M.b);if(!a)return '';const j=a.best;return `<div class="recc"><span class="label">${M.l}</span><b>${valH(j.stats[M.k],M)}</b><a href="#s-${j.id}">#${j._n} ${esc(j.exitName||'Sin nombre')}</a><span class="muted rsub">${fDate(j.exitTime)} · ${M.sub}</span><button type="button" class="btn small" data-addcmp="${j.id}">${S.cmp.includes(j.id)?'✓ En la comparación':'+ Comparar'}</button></div>`;}).join('')}</div></div>`;}).join('');
   app.innerHTML=`${statusBanner()}
+  ${recHtml?`<section class="panel recs"><h2>Tus récords</h2>${recHtml}<p class="note">Sin contar los saltos marcados como «no cuenta». Toca el número de salto para abrirlo, o «+ Comparar» para añadirlo abajo.</p></section>`:''}
   <section class="panel cmpsel"><h2>¿Qué saltos comparas?</h2>
     <div class="modebar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-csu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-csu="" aria-pressed="${!S.suit}">Los dos</button></span></div>
     <div class="quick"><span class="label">Rápido, según</span> <select id="cmpBy" class="inline" aria-label="Criterio">${CRIT.map(c=>`<option value="${c[0]}" ${c[0]===crit[0]?'selected':''}>${c[1]}</option>`).join('')}</select>
@@ -1184,6 +1196,7 @@ async function viewCompare(){
     S.cmp=q==='bw'?[L[0],L[L.length-1]]:q==='b2w2'?[L[0],L[1],L[L.length-2],L[L.length-1]]:q==='b5'?L.slice(0,5):L.slice(-5).reverse();S.cmp=[...new Set(S.cmp.filter(Boolean).map(j=>j.id))];viewCompare();});
   app.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{S.cmp=S.cmp.filter(x=>x!==b.dataset.rm);if(!S.cmp.length)S.cmp=[sel.find(j=>j.id!==b.dataset.rm)?.id].filter(Boolean);viewCompare();});
   app.querySelectorAll('[data-pk]').forEach(c=>c.onchange=()=>{const id=c.dataset.pk;if(c.checked){if(S.cmp.length<5)S.cmp.push(id);}else S.cmp=S.cmp.filter(x=>x!==id);if(!S.cmp.length)S.cmp=[id];S._pickOpen=true;const y=scrollY;viewCompare().then(()=>scrollTo(0,y));});
+  app.querySelectorAll('[data-addcmp]').forEach(b=>b.onclick=()=>{const id=b.dataset.addcmp;if(S.cmp.includes(id))return;if(S.cmp.length>=5)S.cmp.shift();S.cmp.push(id);const y=scrollY;viewCompare().then(()=>scrollTo(0,y));});
   bindMode(viewCompare);
   const trs=await Promise.all(sel.map(j=>getTrack(j.id).catch(()=>null)));
   if(route().v!=='compare')return;
@@ -1283,6 +1296,7 @@ async function viewTerrain(){
   const saved=S.tSel==='new'?null:list.find(x=>x.id===S.tSel);
   if(!S.tRows||S.tRowsFor!==S.tSel){S.tRows=saved?(saved.points||[]).map(p=>[String(p[0]),String(p[1])]):[['',''],['',''],['','']];S.tRowsFor=S.tSel;S.tName=saved?saved.name:'';S.tExitLink=saved?(saved.exit||''):'';}
   const T=parsePts(S.tRows.map(r=>r.join(' ')).join('\n'));
+  S.tExit='';S.tInclEx=true;S.wMode='v';S.tPick=null;
   let pool=bySuit(all,S.suit);if(S.tExit)pool=pool.filter(j=>j.exitName===S.tExit);if(!S.tInclEx)pool=pool.filter(j=>!j.excluded);
   if(S.tPick)S.tPick=S.tPick.filter(id=>id==='__none__'||all.some(j=>j.id===id));
   const manual=!!(S.tPick&&S.tPick.length);if(manual)pool=bySuit(all,S.suit).filter(j=>S.tPick.includes(j.id));
@@ -1314,15 +1328,6 @@ async function viewTerrain(){
       <p class="note">${T.length?`${T.length} puntos válidos, de ${fmt(T[0][0])} a ${fmt(T[T.length-1][0])} m de distancia.`:'Distancia horizontal desde la salida y caída por debajo de la salida, en metros. Si la pared es vertical, pon distancia 0 con la caída hasta donde llega la vertical.'}</p>
       <div class="actions">${S.canWrite||!S.db?`<button class="btn primary" id="tSave">Guardar pared</button>`:''}${saved&&(S.canWrite||OFF.on)?'<span id="tDelZone"><button class="btn danger small" id="tDel">Borrar pared</button></span>':''}<span class="saved" id="tMsg"></span></div>
     </section>
-    <section class="panel"><h2>Comparar con</h2><div class="modebar">${wallSegs()}</div>
-      <div class="toolbar">
-        <select id="tEx" aria-label="Exit"><option value="">Todos los exits</option>${exits.map(([k,v])=>`<option value="${esc(k)}" ${S.tExit===k?'selected':''}>${esc(k)} · ${v.length}</option>`).join('')}</select></div>
-      <label class="chk2"><input type="checkbox" id="tIncl" ${S.tInclEx?'checked':''} ${manual?'disabled':''}> Incluir saltos marcados como «no cuenta» (recomendado: el peor caso es el que importa)</label>
-      <details class="picker tpick" ${S.tPickOpen?'open':''}><summary class="btn small">${manual?`Saltos elegidos a mano: ${pool.length}`:'Elegir saltos a mano'}</summary>
-        <div class="plist"><div class="pbtns"><button class="btn small" data-tp="all">Todos</button><button class="btn small" data-tp="none">Ninguno</button>${S.tExit?`<button class="btn small" data-tp="exit">Solo ${esc(S.tExit)}</button>`:''}${manual?'<button class="btn small" data-tp="reset">Volver a usar filtros</button>':''}</div>
-        ${pickGroups.map(([k,v])=>`<div class="pg"><b>${esc(k)}</b>${v.slice().reverse().map(j=>`<label><input type="checkbox" data-tpk="${j.id}" ${(manual?S.tPick.includes(j.id):pool.includes(j))?'checked':''}> #${j._n} · ${fDate(j.exitTime)}${j.suit?' · '+esc(j.suit):''}${j.excluded?' · no cuenta':''}</label>`).join('')}</div>`).join('')}</div></details>
-      <p class="note">${manual?'Comparando solo los saltos que has elegido (los filtros de traje y exit no se aplican). ':''}Se comparan ${pool.length} salto${pool.length===1?'':'s'}. Se supone que vuelas en la misma línea que el perfil, desde la salida hasta abrir.</p>
-    </section>
   </div>
   <div class="two">
 
@@ -1344,8 +1349,7 @@ async function viewTerrain(){
   {const nb=$('#tNewBtn');if(nb)nb.onclick=()=>{S.tSel='new';S.tUserNew=true;S.tRows=null;S.tExit='';rerender().then(()=>{const n=$('#tName');if(n){n.scrollIntoView({block:'center'});n.focus();}});};}
 
   app.querySelectorAll('[data-tsu]').forEach(btn=>btn.onclick=()=>{S.suit=btn.dataset.tsu;rerender();});
-  $('#tEx').onchange=e=>{S.tExit=e.target.value;rerender();};
-  $('#tIncl').onchange=e=>{S.tInclEx=e.target.checked;rerender();};
+
   app.querySelectorAll('[data-ts]').forEach(b=>b.onclick=()=>{S.tShow=b.dataset.ts;rerender();});
   const tpd=app.querySelector('.tpick');if(tpd)tpd.addEventListener('toggle',e=>{S.tPickOpen=e.target.open;});
   app.querySelectorAll('[data-tpk]').forEach(c=>c.onchange=()=>{const cur=manual?S.tPick.slice():pool.map(j=>j.id);const id=c.dataset.tpk;S.tPick=c.checked?[...new Set([...cur,id])]:cur.filter(x=>x!==id);if(!S.tPick.length)S.tPick=['__none__'];S.tPickOpen=true;rerender();});
