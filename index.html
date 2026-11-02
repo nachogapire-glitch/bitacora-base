@@ -1115,7 +1115,7 @@ async function viewTerrain(){
     <div class="readout" id="tRead"></div>
     <div id="tTiles"></div></section>
   <div class="two terr">
-    <section class="panel"><h2>${saved?'Editar pared':'Nueva pared'}</h2>
+    <section class="panel"><h2>${saved?`Editar pared: ${esc(saved.name||'')}`:'Pared nueva'} ${saved?'<button type="button" class="btn small primary" id="tNewBtn">+ Pared nueva</button>':''}</h2>
       <label class="fld"><span class="label">Nombre</span><input id="tName" value="${esc(S.tName||'')}" placeholder="p. ej. Ventosa · exit principal"></label>
       <div class="modebar"><span class="label">Orden de los datos</span> <span class="seg" role="group" aria-label="Orden de las columnas"><button type="button" data-wo="dc" aria-pressed="${S.wOrder!=='cd'}">Distancia · caída</button><button type="button" data-wo="cd" aria-pressed="${S.wOrder==='cd'}">Caída · distancia</button></span></div>
       <div class="tablewrap"><table class="pts"><thead><tr><th class="r">#</th>${cols.map(c=>`<th>${colName[c]} (m)</th>`).join('')}<th></th></tr></thead><tbody id="tBody">${S.tRows.map(rowHtml).join('')}</tbody></table></div>
@@ -1156,6 +1156,7 @@ async function viewTerrain(){
   app.querySelectorAll('[data-wo]').forEach(b=>b.onclick=()=>{S.wOrder=b.dataset.wo;rerender();});
   app.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{S.wMode=b.dataset.wm;rerender();});
   $('#tName').oninput=e=>{S.tName=e.target.value;};
+  {const nb=$('#tNewBtn');if(nb)nb.onclick=()=>{S.tSel='new';S.tUserNew=true;S.tRows=null;S.tExit='';rerender().then(()=>{const n=$('#tName');if(n){n.scrollIntoView({block:'center'});n.focus();}});};}
 
   app.querySelectorAll('[data-tsu]').forEach(btn=>btn.onclick=()=>{S.suit=btn.dataset.tsu;rerender();});
   $('#tEx').onchange=e=>{S.tExit=e.target.value;rerender();};
