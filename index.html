@@ -379,7 +379,7 @@ body::before{background:#13203F}
 .onepick{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
 .onepick select{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px 10px;max-width:100%;width:100%}
 .recsuit{border-left:4px solid var(--rc);padding-left:10px;margin:6px 0 14px}
-.recgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}
+.recgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-top:6px}
 .recc{display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-radius:8px;padding:10px 12px;min-width:0}
 .recc b{font-family:var(--f-display);font-weight:700;font-size:28px;line-height:1.05;color:var(--rc);font-variant-numeric:tabular-nums}
 .recc a{font-weight:600;text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -584,7 +584,7 @@ function makeDemo(){
 const DEMO=makeDemo();
 
 /* ---------- Datos ---------- */
-function realJumps(){return [...S.jumps,...Object.values(S.local).map(x=>x.meta)].sort((a,b)=>a.exitTime-b.exitTime);}
+function realJumps(){const r=[...S.jumps,...Object.values(S.local).map(x=>x.meta)];for(const j of r)if(j.excluded)j.excluded=false;return r.sort((a,b)=>a.exitTime-b.exitTime);}
 function numbered(){const r=realJumps();const pr=+S.settings.prior||0;r.forEach((j,i)=>j._n=pr+i+1);return r;}
 function findJump(id){if(id==='demo')return DEMO.meta;return realJumps().find(j=>j.id===id);}
 function nearestExit(lat,lon){let best=null,bd=300;for(const j of realJumps()){if(!j.exitName||!j.stats)continue;const d=hav(lat,lon,j.stats.lat,j.stats.lon);if(d<bd){bd=d;best=j;}}return best;}
@@ -974,7 +974,6 @@ async function viewJump(id){
         <label><span class="label">Tipo de salto</span><select id="f-type" ${editable?'':'disabled'}><option value="">Sin indicar</option>${JTYPES.map(x=>`<option ${j.jumpType===x?'selected':''}>${x}</option>`).join('')}</select></label>
         <label><span class="label">Traje</span><select id="f-suit" ${editable?'':'disabled'}><option value="">Sin indicar</option>${[...new Set([...suitList(),j.suit].filter(Boolean))].map(x=>`<option ${j.suit===x?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
         <label class="full"><span class="label">Campana</span><input id="f-canopy" value="${esc(j.canopy)}" ${editable?'':'disabled'} placeholder="Modelo, talla, pilotillo, slider…"></label>
-        <label class="full chk"><input type="checkbox" id="f-excl" ${j.excluded?'checked':''} ${editable?'':'disabled'}> <span>No contar este salto en medias, mejores, peores ni rankings</span></label>
         <label class="full"><span class="label">Notas</span><textarea id="f-notes" ${editable?'':'disabled'} placeholder="Viento, apertura, heading, aterrizaje…">${esc(j.notes)}</textarea></label>
         ${editable?`<div class="actions"><button class="btn primary" type="submit">Guardar ficha</button><span class="saved" id="savedMsg" role="status"></span><span style="margin-left:auto" id="delZone">${j.demo?'':'<button class="btn danger small" type="button" id="delBtn">Borrar salto</button>'}</span></div>`:''}
       </form>
@@ -988,9 +987,9 @@ async function viewJump(id){
   {const tw=$('#toWall');if(tw)tw.onclick=()=>{S.tOneId=id;S.suit=j.suit||'';S.tPick=null;S.tExit='';location.hash='paredes';};}
   const form=$('#ficha');
   if(editable)form.addEventListener('submit',async e=>{e.preventDefault();
-    const patch={exitName:$('#f-exit').value.trim(),objectType:$('#f-obj').value,area:$('#f-area').value.trim(),jumpType:$('#f-type').value,suit:$('#f-suit').value,canopy:$('#f-canopy').value.trim(),notes:$('#f-notes').value,excluded:$('#f-excl').checked};
+    const patch={exitName:$('#f-exit').value.trim(),objectType:$('#f-obj').value,area:$('#f-area').value.trim(),jumpType:$('#f-type').value,suit:$('#f-suit').value,canopy:$('#f-canopy').value.trim(),notes:$('#f-notes').value};
     const msg=$('#savedMsg');msg.textContent='Guardando…';
-    try{await updateJump(id,patch);msg.textContent=j.demo?'Cambiado (el ejemplo no se guarda)':'Guardado';if(patch.suit!==j.suit||patch.exitName!==j.exitName||patch.excluded!==!!j.excluded)setTimeout(()=>viewJump(id),400);}catch(err){msg.style.color='var(--danger)';msg.textContent='No se pudo guardar. Inténtalo de nuevo.';}
+    try{await updateJump(id,patch);msg.textContent=j.demo?'Cambiado (el ejemplo no se guarda)':'Guardado';if(patch.suit!==j.suit||patch.exitName!==j.exitName)setTimeout(()=>viewJump(id),400);}catch(err){msg.style.color='var(--danger)';msg.textContent='No se pudo guardar. Inténtalo de nuevo.';}
   });
   const del=$('#delBtn');
   if(del)del.onclick=()=>{const z=$('#delZone');z.innerHTML='<span style="font-size:13px">¿Borrar este salto y su trayectoria?</span> <button class="btn danger small" type="button" id="delYes">Borrar</button> <button class="btn small" type="button" id="delNo">Cancelar</button>';
@@ -1167,11 +1166,11 @@ async function viewCompare(){
   let phrase='';{const M=KEY.find(m=>m.k===crit[0])||{k:crit[0],l:crit[1],u:crit[0]==='glideAfter'?': 1':'m',d:crit[0]==='glideAfter'?2:0,b:crit[2]};const a=agg(sel,crit[0],crit[2]);
     if(a&&a.n>1){const diff=Math.abs(a.best.stats[crit[0]]-a.worst.stats[crit[0]]);phrase=`<p class="cmpsum">En <b>${crit[1].toLowerCase()}</b>, el mejor es <b style="color:${CC[sel.indexOf(a.best)]}">#${a.best._n} ${esc(a.best.exitName||'')}</b> (${valH(a.best.stats[crit[0]],M)}) y el peor <b style="color:${CC[sel.indexOf(a.worst)]}">#${a.worst._n} ${esc(a.worst.exitName||'')}</b> (${valH(a.worst.stats[crit[0]],M)}): <b>${fmt(diff,M.d)} ${M.u.trim()}</b> de diferencia.</p>`;}}
   const groups=[...exits,['Sin nombre',sAll.filter(j=>!j.exitName)]].filter(e=>e[1].length);
-  const RECS=[{k:'maxVh',l:'El más rápido',u:'km/h',d:0,b:'hi',sub:'velocidad horizontal máxima'},{k:'ffDist',l:'El más largo en distancia',u:'m',d:0,b:'hi',sub:'avance hasta la apertura'},{k:'ff',l:'El más largo en tiempo',u:'s',d:1,b:'hi',sub:'caída libre'},{k:'glideAfter',l:'El de mejor glide',u:': 1',d:2,b:'hi',sub:'planeo tras el 1:1'}];
+  const RECS=[{k:'maxVh',l:'Más rápido en horizontal',u:'km/h',d:0,b:'hi',sub:'velocidad horizontal máxima'},{k:'maxS',l:'Más rápido en total',u:'km/h',d:0,b:'hi',sub:'velocidad total máxima'},{k:'ffDist',l:'El más largo en distancia',u:'m',d:0,b:'hi',sub:'avance hasta la apertura'},{k:'ff',l:'El más largo en tiempo',u:'s',d:1,b:'hi',sub:'caída libre'},{k:'glideAfter',l:'El de mejor glide',u:': 1',d:2,b:'hi',sub:'planeo tras el 1:1'}];
   const recHtml=suitList().map(su=>{const L=bySuit(all,su).filter(j=>!j.excluded);if(!L.length)return '';
     return `<div class="recsuit" style="--rc:${suitColor(su)}"><h3 class="gtitle"><span class="dot" style="background:${suitColor(su)}"></span>${esc(su)} · ${L.length} saltos</h3><div class="recgrid">${RECS.map(M=>{const a=agg(L,M.k,M.b);if(!a)return '';const j=a.best;return `<div class="recc"><span class="label">${M.l}</span><b>${valH(j.stats[M.k],M)}</b><a href="#s-${j.id}">#${j._n} ${esc(j.exitName||'Sin nombre')}</a><span class="muted rsub">${fDate(j.exitTime)} · ${M.sub}</span><button type="button" class="btn small" data-addcmp="${j.id}">${S.cmp.includes(j.id)?'✓ En la comparación':'+ Comparar'}</button></div>`;}).join('')}</div></div>`;}).join('');
   app.innerHTML=`${statusBanner()}
-  ${recHtml?`<section class="panel recs"><h2>Tus récords</h2>${recHtml}<p class="note">Sin contar los saltos marcados como «no cuenta». Toca el número de salto para abrirlo, o «+ Comparar» para añadirlo abajo.</p></section>`:''}
+  ${recHtml?`<section class="panel recs"><h2>Tus récords</h2>${recHtml}<p class="note">Toca el número de salto para abrirlo, o «+ Comparar» para añadirlo abajo.</p></section>`:''}
   <section class="panel cmpsel"><h2>¿Qué saltos comparas?</h2>
     <div class="modebar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-csu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-csu="" aria-pressed="${!S.suit}">Los dos</button></span></div>
     <div class="quick"><span class="label">Rápido, según</span> <select id="cmpBy" class="inline" aria-label="Criterio">${CRIT.map(c=>`<option value="${c[0]}" ${c[0]===crit[0]?'selected':''}>${c[1]}</option>`).join('')}</select>
