@@ -346,6 +346,7 @@ body::before{background:#13203F}
 .seg button[aria-pressed="true"]{background:var(--ff);color:#fff}
 .btn.primary{background:var(--ff);border-color:var(--ff)}
 .section-title{color:var(--ff)}
+.banner.off{border-left:4px solid var(--ok)}
 </style>
 
 <header class="top">
@@ -358,7 +359,7 @@ body::before{background:#13203F}
       <a href="#comparar" id="tab-cmp">Comparar</a>
     </nav>
     <label class="btn primary" for="fileIn" id="impBtn">Importar FlySight</label>
-    <input type="file" id="fileIn" multiple accept=".csv,.CSV,text/csv" hidden>
+    <input type="file" id="fileIn" multiple accept=".csv,.CSV,text/csv,.json,application/json" hidden>
   </div>
 </header>
 <main class="wrap" id="app"></main>
@@ -470,6 +471,37 @@ function makeSpark(tr){
   return {p,o:oi};
 }
 const clean=tr=>({t0:tr.t0,t:tr.t,lat:tr.lat,lon:tr.lon,h:tr.h,vn:tr.vn,ve:tr.ve,vd:tr.vd,marks:{...tr.marks}});
+/* ---------- Guardado en este móvil (app pública, sin cobertura) ---------- */
+const LDB=(()=>{let p=null;const open=()=>p||(p=new Promise((res,rej)=>{try{const r=indexedDB.open('bitacora-base',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}}));
+  const tx=(m,f)=>open().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv',m);const st=t.objectStore('kv');const q=f(st);t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error);}));
+  return {get:k=>tx('readonly',st=>st.get(k)).catch(()=>undefined),set:(k,v)=>tx('readwrite',st=>st.put(v,k)).catch(e=>{console.warn('LDB',e);throw e;})};})();
+const OFF={on:false,patch:{},marks:{},hidden:[],terrain:{}};
+const offSave=async()=>{if(!OFF.on)return;const loc={};for(const [id,x] of Object.entries(S.local))loc[id]={meta:x.meta,track:clean(x.track)};
+  await Promise.all([LDB.set('local',loc),LDB.set('patch',OFF.patch),LDB.set('marks',OFF.marks),LDB.set('hidden',OFF.hidden),LDB.set('terrain',OFF.terrain)]);};
+async function offLoad(){OFF.on=true;try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist();}catch(e){}
+  const [loc,pa,mk,hi,te]=await Promise.all(['local','patch','marks','hidden','terrain'].map(k=>LDB.get(k)));
+  OFF.patch=pa||{};OFF.marks=mk||{};OFF.hidden=hi||[];OFF.terrain=te||{};
+  const known=new Set(S.jumps.map(j=>j.id)),times=S.jumps.map(j=>j.exitTime);
+  for(const [id,x] of Object.entries(loc||{})){if(known.has(id)||times.some(t=>Math.abs(t-x.meta.exitTime)<3000))continue;S.local[id]={meta:{...x.meta,local:true},track:x.track};}
+  S.jumps=S.jumps.filter(j=>!OFF.hidden.includes(j.id));
+  for(const j of S.jumps){if(OFF.patch[j.id])Object.assign(j,OFF.patch[j.id]);if(OFF.marks[j.id]&&S.tracks[j.id])S.tracks[j.id].marks={...OFF.marks[j.id]};}
+  const tm={};for(const t of S.terrain)tm[t.id]=t;for(const [id,d] of Object.entries(OFF.terrain)){if(d)tm[id]={id,...d};else delete tm[id];}S.terrain=Object.values(tm);}
+function offPatch(id,patch){OFF.patch[id]={...(OFF.patch[id]||{}),...patch};}
+function bundleOut(){const loc=Object.entries(S.local).map(([id,x])=>({id,meta:Object.fromEntries(Object.entries(x.meta).filter(([k])=>k!=='local'&&k!=='_n')),track:clean(x.track)}));
+  return {app:'bitacora-base',v:1,fecha:new Date().toISOString(),jumps:loc,patch:OFF.patch,marks:OFF.marks,terrain:OFF.terrain};}
+async function exportBundle(){const b=bundleOut();const txt=JSON.stringify(b);const name='bitacora-movil-'+new Date().toISOString().slice(0,10)+'.json';
+  const blob=new Blob([txt],{type:'application/json'});
+  try{const f=new File([blob],name,{type:'application/json'});if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Bitácora BASE · saltos nuevos'});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);}
+async function importBundle(f,items){let b;try{b=JSON.parse(await f.text());}catch(e){items.push({s:'err',f:f.name,m:'No es un archivo de la bitácora'});return;}
+  if(!b||b.app!=='bitacora-base'){items.push({s:'err',f:f.name,m:'No es un archivo de la bitácora'});return;}
+  let nj=0,nd=0,nt=0;
+  for(const x of b.jumps||[]){if(findJump(x.id)||realJumps().some(j=>Math.abs(j.exitTime-x.meta.exitTime)<3000)){nd++;continue;}await saveJump(x.id,{...x.meta},x.track);nj++;}
+  for(const [id,pa] of Object.entries(b.patch||{})){if(findJump(id)&&!S.local[id]){try{await updateJump(id,pa);}catch(e){}}}
+  for(const [id,mk] of Object.entries(b.marks||{})){const j=findJump(id);if(!j||S.local[id])continue;try{const tr=await getTrack(id);if(!tr)continue;tr.marks={...mk};const ns=computeStats(tr),spk=makeSpark(tr);if(S.canWrite){await S.db.doc('tracks/'+id).update({marks:mk});await S.db.doc('jumps/'+id).update({stats:ns,spark:spk});}else if(OFF.on){OFF.marks[id]=mk;offPatch(id,{stats:ns,spark:spk});Object.assign(j,{stats:ns,spark:spk});}}catch(e){}}
+  for(const [id,d] of Object.entries(b.terrain||{})){if(!d)continue;if(S.canWrite)await S.db.doc('terrain/'+id).set(d);else{S.terrain=[...S.terrain.filter(t=>t.id!==id),{id,...d}];if(OFF.on)OFF.terrain[id]=d;}nt++;}
+  if(OFF.on)await offSave();
+  items.push({s:nj||nt?'ok':'dup',f:f.name,m:`${nj} salto${nj===1?'':'s'} nuevo${nj===1?'':'s'}${nd?`, ${nd} ya estaba${nd===1?'':'n'}`:''}${nt?`, ${nt} pared${nt===1?'':'es'}`:''}`});}
 function hav(a1,o1,a2,o2){const r=Math.PI/180,dA=(a2-a1)*r,dO=(o2-o1)*r;const h=Math.sin(dA/2)**2+Math.cos(a1*r)*Math.cos(a2*r)*Math.sin(dO/2)**2;return 2*RE*Math.asin(Math.sqrt(h));}
 
 /* ---------- Salto de ejemplo (no se guarda) ---------- */
@@ -504,19 +536,22 @@ async function getTrack(id){
 }
 async function saveJump(id,meta,tr){
   if(S.canWrite){await S.db.doc('tracks/'+id).set(clean(tr));await S.db.doc('jumps/'+id).set(meta);S.tracks[id]=tr;}
-  else{S.local[id]={meta:{id,...meta,local:true},track:tr};}
+  else{S.local[id]={meta:{id,...meta,local:true},track:tr};await offSave();}
 }
 async function updateJump(id,patch){
-  if(S.local[id]){Object.assign(S.local[id].meta,patch);return;}
+  if(S.local[id]){Object.assign(S.local[id].meta,patch);await offSave();return;}
   if(id==='demo'){Object.assign(DEMO.meta,patch);return;}
+  if(OFF.on){const j=S.jumps.find(x=>x.id===id);if(j)Object.assign(j,patch);offPatch(id,patch);await offSave();return;}
   await S.db.doc('jumps/'+id).update(patch);
 }
 
 /* ---------- Importación ---------- */
 async function importFiles(files){
+  const bundles=[...files].filter(f=>/\.json$/i.test(f.name));
   files=[...files].filter(f=>/\.csv$/i.test(f.name));
-  if(!files.length)return;
+  if(!files.length&&!bundles.length)return;
   const items=[];S.importLog={busy:true,items};if(route().v!=='list')location.hash='saltos';render();
+  for(const f of bundles){try{await importBundle(f,items);}catch(e){items.push({s:'err',f:f.name,m:'No se pudo leer'});}renderImport();}
   for(const f of files){
     const label=(f.webkitRelativePath||f.name);
     try{
@@ -536,6 +571,7 @@ async function importFiles(files){
   }
   S.importLog.busy=false;render();
 }
+document.addEventListener('click',e=>{if(e.target&&e.target.closest&&e.target.closest('#offExp'))exportBundle();});
 $('#fileIn').addEventListener('change',e=>{importFiles(e.target.files);e.target.value='';});
 let dragN=0;
 addEventListener('dragenter',e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){dragN++;$('#drop').hidden=false;}});
@@ -733,7 +769,8 @@ function multiChart(el,cfg){
 /* ---------- Vistas ---------- */
 function route(){const h=location.hash.slice(1);if(h==='stats'||h==='numeros')return{v:'stats'};if(h==='comparar')return{v:'compare'};if(h==='suelo'||h==='paredes')return{v:'terrain'};if(h.startsWith('s-'))return{v:'jump',id:h.slice(2)};return{v:'list'};}
 function statusBanner(){
-  if(S.dbState==='embed')return `<div class="banner"><p><b>Bitácora BASE de Nacho</b> · copia del ${esc(window.__EMBED.fecha||'')}. Puedes mirar todo y probar con tus propios archivos de FlySight o tus paredes, pero lo que añadas no se guarda al cerrar.</p></div>`;
+  if(S.dbState==='embed'){const nl=Object.keys(S.local).length,nc=Object.keys(OFF.patch).length+Object.keys(OFF.marks).length+Object.keys(OFF.terrain).length;
+    return `<div class="banner off"><p><b>Funciona sin cobertura.</b> Datos hasta el ${esc(window.__EMBED.fecha||'')}. Lo que importes o cambies se guarda en este móvil${nl?` · <b>${nl} salto${nl===1?'':'s'} nuevo${nl===1?'':'s'}</b> aquí`:''}${nc&&!nl?' · tienes cambios guardados aquí':''}.</p>${nl||nc?'<button class="btn small" type="button" id="offExp">Exportar saltos nuevos</button>':''}</div>`;}
   if(S.dbState==='connecting')return `<div class="banner"><p class="muted">Conectando con tu bitácora…</p></div>`;
   if(S.dbState==='slow')return `<div class="banner warn"><p>La bitácora tarda en responder. Comprueba la conexión; los saltos aparecerán en cuanto llegue.</p></div>`;
   if(S.dbState==='off'||S.dbState==='err')return `<div class="banner warn"><p><b>Modo sin guardar.</b> Abre esta página con tu cuenta de Claude para guardar los saltos. Ahora puedes importar y analizar archivos, pero se pierden al cerrar.</p></div>`;
@@ -806,7 +843,7 @@ function viewList(){
     $('#rows').innerHTML=list.map(j=>{const st=j.stats||{};return `<a class="row" href="#s-${j.id}" style="--sc:${j.suit?suitColor(j.suit):'var(--line)'}">
       <div class="num">${j._n==null?'—':j._n}<small>${j._n==null?'':'SALTO'}</small></div>
       ${sparkSvg(j.spark)}
-      <div class="what"><div class="exitname">${j.exitName?esc(j.exitName):'<span class="muted">Exit sin nombre</span>'} <span class="obj ${j.objectType?'':'none'}" title="${esc(OBJ[j.objectType]||'Tipo sin indicar')}">${j.objectType||'?'}</span>${j.demo?'<span class="tag">Ejemplo</span>':''}${j.local?'<span class="tag">Sin guardar</span>':''}${j.excluded?'<span class="tag nc">No cuenta</span>':''}</div>
+      <div class="what"><div class="exitname">${j.exitName?esc(j.exitName):'<span class="muted">Exit sin nombre</span>'} <span class="obj ${j.objectType?'':'none'}" title="${esc(OBJ[j.objectType]||'Tipo sin indicar')}">${j.objectType||'?'}</span>${j.demo?'<span class="tag">Ejemplo</span>':''}${j.local?`<span class="tag">${OFF.on?'Nuevo · en este móvil':'Sin guardar'}</span>`:''}${j.excluded?'<span class="tag nc">No cuenta</span>':''}</div>
       <div class="sub">${fDate(j.exitTime)} · ${fTime(j.exitTime)}${j.area?' · '+esc(j.area):''}${j.suit?' · '+esc(j.suit):''}</div></div>
       <dl class="kv"><div><dt>Caída libre</dt><dd>${fmt(st.ff,1)}<i>s</i></dd></div><div><dt>Caes</dt><dd>${fmt(st.ffDrop)}<i>m</i></dd></div><div><dt>Avanzas</dt><dd>${fmt(st.ffDist)}<i>m</i></dd></div><div><dt>A −300 m</dt><dd>${fmt(st.d300)}<i>m</i></dd></div></dl></a>`;}).join('')||'<p class="muted">Ningún salto coincide con la búsqueda.</p>';
   };
@@ -824,7 +861,7 @@ async function viewJump(id){
   const all=numbered();const j=findJump(id);
   if(!j){app.innerHTML=S.dbState==='connecting'?'<p class="muted">Cargando…</p>':`<a class="back" href="#saltos">← Todos los saltos</a><p>Este salto no existe o se ha borrado.</p>`;return;}
   const n=j.demo?null:(all.find(x=>x.id===id)||{})._n;
-  const editable=j.demo||j.local||S.canWrite;
+  const editable=j.demo||j.local||S.canWrite||OFF.on;
   const st=j.stats||{};
   const names=[...new Set(realJumps().map(x=>x.exitName).filter(Boolean))].sort();
   const suitPool=j.suit?all.filter(x=>x.suit===j.suit):all;const suitLbl=j.suit?esc(j.suit):'todos los trajes';
@@ -883,7 +920,7 @@ async function viewJump(id){
   const del=$('#delBtn');
   if(del)del.onclick=()=>{const z=$('#delZone');z.innerHTML='<span style="font-size:13px">¿Borrar este salto y su trayectoria?</span> <button class="btn danger small" type="button" id="delYes">Borrar</button> <button class="btn small" type="button" id="delNo">Cancelar</button>';
     $('#delNo').onclick=()=>viewJump(id);
-    $('#delYes').onclick=async()=>{try{if(S.local[id])delete S.local[id];else{await S.db.doc('jumps/'+id).delete();await S.db.doc('tracks/'+id).delete();delete S.tracks[id];}location.hash='saltos';}catch(e){z.innerHTML='<span style="color:var(--danger);font-size:13px">No se pudo borrar.</span>';}};};
+    $('#delYes').onclick=async()=>{try{if(S.local[id]){delete S.local[id];await offSave();}else if(OFF.on){OFF.hidden=[...new Set([...OFF.hidden,id])];S.jumps=S.jumps.filter(x=>x.id!==id);await offSave();}else{await S.db.doc('jumps/'+id).delete();await S.db.doc('tracks/'+id).delete();delete S.tracks[id];}location.hash='saltos';}catch(e){z.innerHTML='<span style="color:var(--danger);font-size:13px">No se pudo borrar.</span>';}};};
 
   let tr;try{tr=await getTrack(id);}catch(e){tr=null;}
   if(route().id!==id)return;
@@ -924,7 +961,7 @@ async function viewJump(id){
     el.querySelectorAll('button').forEach(b=>b.onclick=async()=>{const m=b.dataset.m,i=S.pick;const mk={...tr.marks,[m]:i};
       if(mk.open!=null&&(mk.open<=mk.exit||mk.open>=mk.land)||mk.land<=mk.exit){$('#adjMsg').style.color='var(--danger)';$('#adjMsg').textContent='Orden imposible: salida, apertura y aterrizaje deben ir en ese orden.';return;}
       tr.marks=mk;const ns=computeStats(tr),spk=makeSpark(tr);
-      try{if(j.demo){Object.assign(DEMO.meta,{stats:ns,spark:spk});}else if(S.local[id]){Object.assign(S.local[id].meta,{stats:ns,spark:spk});}else{await S.db.doc('tracks/'+id).update({marks:mk});await S.db.doc('jumps/'+id).update({stats:ns,spark:spk});}
+      try{if(j.demo){Object.assign(DEMO.meta,{stats:ns,spark:spk});}else if(S.local[id]){Object.assign(S.local[id].meta,{stats:ns,spark:spk});await offSave();}else if(OFF.on){OFF.marks[id]={...mk};offPatch(id,{stats:ns,spark:spk});Object.assign(j,{stats:ns,spark:spk});await offSave();}else{await S.db.doc('tracks/'+id).update({marks:mk});await S.db.doc('jumps/'+id).update({stats:ns,spark:spk});}
         S.pick=null;viewJump(id);}catch(e){$('#adjMsg').style.color='var(--danger)';$('#adjMsg').textContent='No se pudo guardar el cambio.';}});};
   S.redraw=drawAll;drawAll();showAdjust();
 }
@@ -1208,7 +1245,7 @@ async function viewTerrain(){
           <button class="btn small primary" id="tPasteGo">Usar estos puntos</button></div>
           <p class="note" id="tPrev"></p></details>
       <p class="note">${T.length?`${T.length} puntos válidos, de ${fmt(T[0][0])} a ${fmt(T[T.length-1][0])} m de distancia.`:'Distancia horizontal desde la salida y caída por debajo de la salida, en metros. Si la pared es vertical, pon distancia 0 con la caída hasta donde llega la vertical.'}</p>
-      <div class="actions">${S.canWrite||!S.db?`<button class="btn primary" id="tSave">Guardar pared</button>`:''}${saved&&S.canWrite?'<span id="tDelZone"><button class="btn danger small" id="tDel">Borrar pared</button></span>':''}<span class="saved" id="tMsg"></span></div>
+      <div class="actions">${S.canWrite||!S.db?`<button class="btn primary" id="tSave">Guardar pared</button>`:''}${saved&&(S.canWrite||OFF.on)?'<span id="tDelZone"><button class="btn danger small" id="tDel">Borrar pared</button></span>':''}<span class="saved" id="tMsg"></span></div>
     </section>
     <section class="panel"><h2>Comparar con</h2><div class="modebar">${wallSegs()}</div>
       <div class="toolbar">
@@ -1248,10 +1285,10 @@ async function viewTerrain(){
   app.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{const k=b.dataset.tp;S.tPickOpen=true;if(k==='all')S.tPick=all.map(j=>j.id);else if(k==='none')S.tPick=['__none__'];else if(k==='exit')S.tPick=all.filter(j=>j.exitName===S.tExit).map(j=>j.id);else S.tPick=null;rerender();});
   const sv=$('#tSave');if(sv)sv.onclick=async()=>{const name=($('#tName').value||'').trim()||'Pared sin nombre';if(T.length<2){$('#tMsg').textContent='Hacen falta al menos dos puntos.';return;}
     const id=saved?saved.id:('t'+Date.now());const doc={name,points:T,exit:saved?(saved.exit||''):'',updatedAt:Date.now()};if(saved&&saved.source)doc.source=saved.source;
-    try{if(S.db&&S.canWrite)await S.db.doc('terrain/'+id).set(doc);else{S.terrain=[...(S.terrain||[]).filter(t=>t.id!==id),{id,...doc}];}
+    try{if(S.db&&S.canWrite)await S.db.doc('terrain/'+id).set(doc);else{S.terrain=[...(S.terrain||[]).filter(t=>t.id!==id),{id,...doc}];if(OFF.on){OFF.terrain[id]=doc;await offSave();}}
       S.tSel=id;S.tRowsFor=id;$('#tMsg').textContent='Guardada';if(!S.db)rerender();}catch(e){$('#tMsg').textContent='No se pudo guardar.';}};
   const dl=$('#tDel');if(dl)dl.onclick=()=>{$('#tDelZone').innerHTML='¿Borrar esta pared? <button class="btn danger small" id="tYes">Borrar</button> <button class="btn small" id="tNo">Cancelar</button>';
-    $('#tNo').onclick=()=>rerender();$('#tYes').onclick=async()=>{try{await S.db.doc('terrain/'+saved.id).delete();S.tSel=null;S.tRows=null;}catch(e){$('#tMsg').textContent='No se pudo borrar.';}};};
+    $('#tNo').onclick=()=>rerender();$('#tYes').onclick=async()=>{try{if(OFF.on){OFF.terrain[saved.id]=null;S.terrain=S.terrain.filter(t=>t.id!==saved.id);await offSave();S.tSel=null;S.tRows=null;rerender();return;}await S.db.doc('terrain/'+saved.id).delete();S.tSel=null;S.tRows=null;}catch(e){$('#tMsg').textContent='No se pudo borrar.';}};};
   if(T.length<2||!pool.length){if(!pool.length&&T.length>=2)$('#tChart').innerHTML='<p class="muted">No hay saltos elegidos. Marca alguno en «Elegir saltos a mano» o cambia el traje o el exit.</p>';return;}
   const trs=await Promise.all(pool.map(j=>getTrack(j.id).catch(()=>null)));
   if(route().v!=='terrain')return;
@@ -1337,7 +1374,7 @@ render();
 
 /* ---------- Conexión con la bitácora guardada ---------- */
 (async()=>{
-  if(window.__EMBED){const E=window.__EMBED;S.jumps=E.jumps||[];for(const [id,t] of Object.entries(E.tracks||{}))S.tracks[id]=t;S.terrain=E.terrain||[];S.settings={prior:0,...(E.settings||{})};S.dbState='embed';S.canWrite=false;render();return;}
+  if(window.__EMBED){const E=window.__EMBED;S.jumps=E.jumps||[];for(const [id,t] of Object.entries(E.tracks||{}))S.tracks[id]=t;S.terrain=E.terrain||[];S.settings={prior:0,...(E.settings||{})};S.dbState='embed';S.canWrite=false;try{await offLoad();}catch(e){console.warn(e);}render();return;}
   const C=window.claude;
   if(!C||!C.use){S.dbState='off';render();return;}
   let db=null,user=null;
