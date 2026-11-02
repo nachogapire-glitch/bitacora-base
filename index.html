@@ -263,6 +263,8 @@ table.nums td .dot{margin-right:6px}
 .morej{margin-top:8px}
 .morej summary{list-style:none;display:inline-flex}.morej summary::-webkit-details-marker{display:none}
 .morej[open] summary{margin-bottom:8px}
+.suitbar{margin:2px 0 10px}
+.suitbar .seg button{font-size:15px;padding:7px 14px;font-weight:600}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1107,6 +1109,7 @@ async function viewTerrain(){
   <div class="intro"><p>Guarda aquí el perfil de cada pared: para cada punto, a cuántos metros de distancia horizontal desde la salida está la roca y cuántos metros por debajo de la salida. La app lo compara con la trayectoria de tus saltos y te dice el margen que habrías tenido.</p></div>
   <div class="wallpick"><label class="label" for="wSel">Pared</label><select id="wSel">${list.map(t=>`<option value="${t.id}" ${S.tSel===t.id?'selected':''}>${esc(t.name||'Sin nombre')} · ${(t.points||[]).length} puntos${t.source==='baseline.ws'?' · Baseline':''}</option>`).join('')}<option value="new" ${S.tSel==='new'?'selected':''}>+ Añadir pared nueva</option></select></div>
   <section class="panel"><h2>Tus saltos sobre esta pared <span class="seg" role="group" aria-label="Qué salto dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ts="${k}" aria-pressed="${(S.tShow||'worst')===k}">${l}</button>`).join('')}</span></h2><div id="tShowInfo"></div>
+    <div class="modebar suitbar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
     <div class="readout" id="tRead"></div></section>
   <div class="two terr">
@@ -1125,7 +1128,6 @@ async function viewTerrain(){
       <div class="actions">${S.canWrite||!S.db?`<button class="btn primary" id="tSave">Guardar pared</button>`:''}${saved&&S.canWrite?'<span id="tDelZone"><button class="btn danger small" id="tDel">Borrar pared</button></span>':''}<span class="saved" id="tMsg"></span></div>
     </section>
     <section class="panel"><h2>Comparar con</h2><div class="modebar">${wallSegs()}</div>
-      <div class="modebar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
       <div class="toolbar">
         <select id="tEx" aria-label="Exit"><option value="">Todos los exits</option>${exits.map(([k,v])=>`<option value="${esc(k)}" ${S.tExit===k?'selected':''}>${esc(k)} · ${v.length}</option>`).join('')}</select></div>
       <label class="chk2"><input type="checkbox" id="tIncl" ${S.tInclEx?'checked':''} ${manual?'disabled':''}> Incluir saltos marcados como «no cuenta» (recomendado: el peor caso es el que importa)</label>
