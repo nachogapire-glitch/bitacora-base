@@ -856,6 +856,7 @@ async function viewJump(id){
   const colorAt=i=>i<E?'var(--pre)':(O==null||i<O)?'var(--ff)':'var(--canopy)';
   const nT=tr.t.length;let from=E;while(from>0&&tr.t[E]-tr.t[from-1]<=5)from--;
   const to=Math.min(nT-1,L+Math.round((nT-1-L)*.3));
+  const cut=(()=>{if(O==null)return L;let k=O;while(k<L&&tr.t[k]-tr.t[O]<10)k++;return k;})();
   const glide=tr.vd.map((v,i)=>v>1?d.vh[i]/v:null);
   S.onCursor=i=>{['#readout','#readout2'].forEach(s=>{const r=$(s);if(!r)return;r.innerHTML=i==null?(s==='#readout'?'<span class="muted">Pasa el dedo o el ratón por las gráficas para ver cada punto.</span>':''):readoutHtml(tr,d,i);});};
   const marks=[{i:E,label:'Salida',color:'var(--ff)'},{i:O,label:'Apertura',color:'var(--ff)'},{i:L,label:'Aterrizaje',color:'var(--canopy)'}];
@@ -864,13 +865,13 @@ async function viewJump(id){
   const H0=d.agl[E];
   const drawAll=()=>{
     CURSORS=[];
-    lineChart($('#cProfile'),{xs:d.cum,from,to:L,series:[{ys:d.agl,colorAt}],marks,xTitle:'avance desde la salida (m)',yTitle:'altura sobre el aterrizaje (m)',h:270,yMin:0,label:'Perfil del salto',
+    lineChart($('#cProfile'),{xs:d.cum,from,to:cut,series:[{ys:d.agl,colorAt}],marks,xTitle:'avance desde la salida (m)',yTitle:'altura sobre el aterrizaje (m)',h:270,yMin:0,label:'Perfil del salto',
       lines:[{x1:0,y1:H0,x2:H0,y2:0,color:'var(--muted)',label:'1:1',lx:H0*.55,ly:H0*.45}]});
-    lineChart($('#cSpeed'),{xs:tr.t,from,to,bands,series:[{ys:vh,color:'var(--ff)'},{ys:vd,color:'var(--canopy)'},{ys:sp,color:'var(--ink)',w:1.6},{ys:d.agl,color:'var(--muted)',w:1.3,y2:true,nodot:true}],
+    lineChart($('#cSpeed'),{xs:tr.t,from,to:cut,bands,series:[{ys:vh,color:'var(--ff)'},{ys:vd,color:'var(--canopy)'},{ys:sp,color:'var(--ink)',w:1.6},{ys:d.agl,color:'var(--muted)',w:1.3,y2:true,nodot:true}],
       y2:{title:'altura (m)',min:0},marks,xTitle:'segundos desde la salida',yTitle:'km/h',h:260,yMin:0,zero:true,pick:S.pick,label:'Velocidades y altura',
       onPick:editable?(i=>{S.pick=i;drawAll();showAdjust();}):null});
-    lineChart($('#cGlide'),{xs:tr.t,from:E,to:L,bands,series:[{ys:glide,colorAt}],xTitle:'segundos desde la salida',yTitle:'planeo (: 1)',h:170,yMin:0,yMax:4,label:'Planeo instantáneo',
-      lines:[{x1:tr.t[E],y1:1,x2:tr.t[L],y2:1,color:'var(--muted)',label:'1:1',lx:tr.t[E],ly:1}]});
+    lineChart($('#cGlide'),{xs:tr.t,from:E,to:cut,bands,series:[{ys:glide,colorAt}],xTitle:'segundos desde la salida',yTitle:'planeo (: 1)',h:170,yMin:0,yMax:4,label:'Planeo instantáneo',
+      lines:[{x1:tr.t[E],y1:1,x2:tr.t[cut],y2:1,color:'var(--muted)',label:'1:1',lx:tr.t[E],ly:1}]});
     planChart($('#cPlan'),tr,colorAt,from,to);
     if(S.cursor!=null)setCursor(S.cursor);
   };
