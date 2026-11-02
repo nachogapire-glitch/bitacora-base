@@ -265,6 +265,16 @@ table.nums td .dot{margin-right:6px}
 .morej[open] summary{margin-bottom:8px}
 .suitbar{margin:2px 0 10px}
 .suitbar .seg button{font-size:15px;padding:7px 14px;font-weight:600}
+.cmpsel .quick{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 10px}
+.cpick summary{list-style:none;display:inline-flex;font-weight:600}.cpick summary::-webkit-details-marker{display:none}
+.plist.inline{position:static;width:auto;max-height:360px;box-shadow:none;margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 16px}
+.plist.inline label{padding:3px 6px;border-radius:5px;cursor:pointer}
+.plist.inline label.on{background:var(--sunk);font-weight:600}
+.plist.inline label .dot{margin:0 4px 0 2px}
+.cmpsel .chips{margin:10px 0 0}
+.cmpsum{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--c2);border-radius:8px;padding:10px 14px;margin:0 0 16px;font-size:15.5px}
+details.vel summary{list-style:none;cursor:pointer}details.vel summary::-webkit-details-marker{display:none}
+details.vel[open] summary{margin-bottom:8px}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -813,7 +823,7 @@ async function viewJump(id){
   <section class="panel"><h2>Planeo instantáneo</h2><div class="chartbox" id="cGlide"></div></section>
   <div class="two">
     <section class="panel"><h2>Vista en planta</h2><div class="chartbox" id="cPlan"></div>
-      <div class="coords"><span class="mono muted">Salida ${st.lat!=null?fmt(st.lat,5)+', '+fmt(st.lon,5):'—'} · ${fmt(st.exitMSL,1)} m s.n.m.</span>${st.lat!=null?`<a class="btn small" href="https://www.google.com/maps?q=${st.lat},${st.lon}&t=k" target="_blank" rel="noopener">Ver salida en Google Maps</a>`:''}</div></section>
+      <div class="coords"><span class="mono muted">Salida ${st.lat!=null?fmt(st.lat,5)+', '+fmt(st.lon,5):'—'} · ${fmt(st.exitMSL,1)} m s.n.m.</span>${st.lat!=null?`<button type="button" class="btn small primary" id="kmlBtn" hidden>Ver vuelo entero en Google Earth</button><a class="btn small" href="https://earth.google.com/web/@${st.lat},${st.lon},${Math.round((st.exitMSL||1000)-250)}a,2600d,35y,0h,65t,0r" target="_blank" rel="noopener">Abrir Google Earth en la salida</a><span class="saved" id="kmlMsg"></span>`:''}</div></section>
     <section class="panel"><h2>Ficha del salto</h2>
       <form class="ficha" id="ficha">
         <label class="full"><span class="label">Exit / objeto</span><input id="f-exit" list="exitNames" value="${esc(j.exitName)}" ${editable?'':'disabled'} placeholder="p. ej. Monte Brento"></label>
@@ -850,6 +860,9 @@ async function viewJump(id){
   if(!tr){$('#cProfile').innerHTML='<p class="muted">No se encontró la trayectoria de este salto.</p>';return;}
   if(!j.demo&&!(st.v>=4)&&S.canWrite&&!S.local[id]){try{const ns=computeStats(tr);await S.db.doc('jumps/'+id).update({stats:ns});return;}catch(e){}}
   const d=derive(tr);const {exit:E,open:O,land:L}=tr.marks;
+  {const kb=$('#kmlBtn');if(kb&&tr.lat[E]>2&&window.claude&&window.claude.use){claude.use('downloads').then(dl=>{if(!dl||!document.body.contains(kb))return;kb.hidden=false;kb.onclick=async()=>{const msg=$('#kmlMsg');
+    const name=(j.exitName||'salto')+' '+new Date(j.exitTime).toISOString().slice(0,10);const kml=buildKml(tr,name);const zip=zipOne(name.replace(/[^\w\- ]+/g,'')+'.kml',kml);
+    try{await dl.save({filename:name.replace(/[^\w\- ]+/g,'')+' (Google Earth).zip',data:zip});msg.textContent='Descargado. Abre el zip y luego el archivo .kml: se abre Google Earth con el vuelo entero (caída libre en naranja, campana en azul).';}catch(e){msg.textContent=e&&e.code==='declined'?'':'No se pudo descargar.';}};}).catch(()=>{});}}
   {const walls=(S.terrain||[]).filter(w=>w.exit&&w.exit===j.exitName&&(w.points||[]).length>=2);const wi=$('#wallInfo');
     if(wi&&walls.length){const P=jumpProfile(tr);wi.innerHTML='<div class="wallinfo">'+walls.map(w=>{const c=clearance(P,w.points);return `<span>Margen sobre la pared <a href="#paredes" data-wall="${w.id}">${esc(w.name)}</a>: <b class="${c.min==null?'':c.min<0?'neg':c.min<50?'lowm':''}">${c.min==null?'no llega a la pared antes de abrir':fmt(c.min)+' m'}</b>${c.min!=null?` a ${fmt(c.at)} m de distancia`:''}</span>`;}).join('')+'</div>';
       wi.querySelectorAll('[data-wall]').forEach(a=>a.onclick=()=>{S.tSel=a.dataset.wall;S.tRows=null;});}}
@@ -996,38 +1009,47 @@ const CC=['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--c5)'];
 async function viewCompare(){
   const all=numbered();
   if(!all.length){app.innerHTML=`${statusBanner()}<div class="empty"><h2>Nada que comparar todavía</h2><p>Importa tus archivos de FlySight y aquí podrás superponer saltos.</p><label class="btn primary" for="fileIn">Importar archivos</label></div>`;return;}
+  const sAll=bySuit(all,S.suit).filter(j=>!j.excluded||S.cmp.includes(j.id));const exits=exitsOf(sAll);
+  const CRIT=[['d300','Avance a −300 m','hi'],['d500','Avance a −500 m','hi'],['cross','Cruce 1:1','hi'],['glideAfter','Planeo tras el 1:1','hi'],['ff','Caída libre','hi'],['h300','Caída a 300 m de avance','lo']];
+  const crit=CRIT.find(c=>c[0]===S.cmpBy)||CRIT[0];
   S.cmp=(S.cmp||[]).filter(id=>all.some(j=>j.id===id));
-  if(!S.cmp.length){const base=bySuit(all,S.suit).length?bySuit(all,S.suit):all;const last=base[base.length-1];const p=last.exitName?base.filter(j=>j.exitName===last.exitName):[];S.cmp=(p.length>1?p:base).slice(-3).map(j=>j.id);}
-  const sel=S.cmp.map(id=>all.find(j=>j.id===id));
-  const sAll=bySuit(all,S.suit);const exits=exitsOf(sAll);
+  if(!S.cmp.length){const a=agg(sAll.filter(j=>!j.excluded),crit[0],crit[2]);if(a&&a.n>1)S.cmp=[a.best.id,a.worst.id];else S.cmp=sAll.slice(-2).map(j=>j.id);}
+  const sel=S.cmp.map(id=>all.find(j=>j.id===id)).filter(Boolean);
   const label=j=>`#${j._n} ${esc(j.exitName||'Sin nombre')} · ${fDate(j.exitTime)}`;
   const mixed=new Set(sel.map(j=>j.suit||'')).size>1;
-  let rows='';
-  for(const M of metricsFor(S.mode)){
-    if(M.g){rows+=`<tr class="grp"><th colspan="${sel.length+2}">${M.g}</th></tr>`;continue;}
-    const a=agg(sel,M.k,M.b);
-    rows+=`<tr><td>${M.l}</td>${sel.map(j=>{const v=j.stats?j.stats[M.k]:null;let cls='';if(a&&M.b&&a.n>1&&v!=null){if(a.best.id===j.id)cls='best';else if(a.worst.id===j.id)cls='worst';}return `<td class="r ${cls}">${valH(v,M)}</td>`;}).join('')}<td class="r avg">${a?valH(a.avg,M):'—'}</td></tr>`;
-  }
+  const KEY=[{k:'ff',l:'Caída libre',u:'s',d:1,b:'hi'},{k:'d100',l:'Avance a −100 m',u:'m',d:0,b:'hi'},{k:'d200',l:'Avance a −200 m',u:'m',d:0,b:'hi'},{k:'d300',l:'Avance a −300 m',u:'m',d:0,b:'hi'},{k:'d500',l:'Avance a −500 m',u:'m',d:0,b:'hi'},{k:'cross',l:'Cruce 1:1',u:'m',d:0,b:'hi'},{k:'glideAfter',l:'Planeo tras el 1:1',u:': 1',d:2,b:'hi'}];
+  const rowsFor=list=>list.map(M=>{if(M.g)return `<tr class="grp"><th colspan="${sel.length+1}">${M.g}</th></tr>`;const a=agg(sel,M.k,M.b);return `<tr><td>${M.l}</td>${sel.map(j=>{const v=j.stats?j.stats[M.k]:null;let cls='';if(a&&M.b&&a.n>1&&v!=null){if(a.best.id===j.id)cls='best';else if(a.worst.id===j.id)cls='worst';}return `<td class="r ${cls}">${valH(v,M)}</td>`;}).join('')}</tr>`;}).join('');
+  const head=`<thead><tr><th></th>${sel.map((j,k)=>`<th class="r"><span class="dot" style="background:${CC[k]}"></span>#${j._n}</th>`).join('')}</tr></thead>`;
+  // frase resumen
+  let phrase='';{const M=KEY.find(m=>m.k===crit[0])||{k:crit[0],l:crit[1],u:crit[0]==='glideAfter'?': 1':'m',d:crit[0]==='glideAfter'?2:0,b:crit[2]};const a=agg(sel,crit[0],crit[2]);
+    if(a&&a.n>1){const diff=Math.abs(a.best.stats[crit[0]]-a.worst.stats[crit[0]]);phrase=`<p class="cmpsum">En <b>${crit[1].toLowerCase()}</b>, el mejor es <b style="color:${CC[sel.indexOf(a.best)]}">#${a.best._n} ${esc(a.best.exitName||'')}</b> (${valH(a.best.stats[crit[0]],M)}) y el peor <b style="color:${CC[sel.indexOf(a.worst)]}">#${a.worst._n} ${esc(a.worst.exitName||'')}</b> (${valH(a.worst.stats[crit[0]],M)}): <b>${fmt(diff,M.d)} ${M.u.trim()}</b> de diferencia.</p>`;}}
+  const groups=[...exits,['Sin nombre',sAll.filter(j=>!j.exitName)]].filter(e=>e[1].length);
   app.innerHTML=`${statusBanner()}
-  <div class="toolbar">${suitSelect('csu',S.suit,all)}<span class="label">Rápido</span>${exits.filter(e=>e[1].length>1).slice(0,6).map(([k,v])=>`<button class="btn small" data-qx="${esc(k)}">${esc(k)} · últimos ${Math.min(5,v.length)}</button>`).join('')}<button class="btn small" data-qb="1">Mis 5 mejores a −300 m</button><button class="btn small" data-qw="1">Mis 5 peores a −300 m</button></div>
-  <div class="chips">${sel.map((j,k)=>`<span class="chip" style="--cc:${CC[k]}"><i></i><a href="#s-${j.id}">${label(j)}${j.suit?' · '+esc(j.suit):''}</a><button aria-label="Quitar" data-rm="${j.id}">×</button></span>`).join('')}
-    <details class="picker"><summary class="btn small">${sel.length<5?'Añadir o quitar saltos':'Cambiar saltos (máx. 5)'}</summary>
-      <div class="plist">${[...exits,['Sin nombre',sAll.filter(j=>!j.exitName)]].filter(e=>e[1].length).map(([k,v])=>`<div class="pg"><b>${esc(k)}</b>${v.slice().reverse().map(j=>`<label><input type="checkbox" data-pk="${j.id}" ${S.cmp.includes(j.id)?'checked':''} ${!S.cmp.includes(j.id)&&S.cmp.length>=5?'disabled':''}> #${j._n} · ${fDate(j.exitTime)} · ${fmt(j.stats&&j.stats.d300,0)} m a −300</label>`).join('')}</div>`).join('')}</div></details></div>
-  <section class="panel"><h2>Números lado a lado ${modeSeg()}</h2><div class="tablewrap"><table class="nums cmp"><thead><tr><th></th>${sel.map((j,k)=>`<th class="r"><span class="dot" style="background:${CC[k]}"></span>#${j._n}</th>`).join('')}<th class="r">Media</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="note">En verde el mejor y en rojo el peor de los saltos elegidos.${mixed?' <b>Ojo: estás mezclando trajes distintos.</b>':''}</p></section>
+  <section class="panel cmpsel"><h2>¿Qué saltos comparas?</h2>
+    <div class="modebar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-csu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-csu="" aria-pressed="${!S.suit}">Los dos</button></span></div>
+    <div class="quick"><span class="label">Rápido, según</span> <select id="cmpBy" class="inline" aria-label="Criterio">${CRIT.map(c=>`<option value="${c[0]}" ${c[0]===crit[0]?'selected':''}>${c[1]}</option>`).join('')}</select>
+      <button class="btn small primary" data-q="bw">Mejor vs peor</button><button class="btn small" data-q="b2w2">2 mejores vs 2 peores</button><button class="btn small" data-q="b5">5 mejores</button><button class="btn small" data-q="w5">5 peores</button></div>
+    <details class="picker cpick" ${S._pickOpen?'open':''}><summary class="btn">Elegir saltos a mano (${sel.length} de 5) ▾</summary>
+      <div class="plist inline">${groups.map(([k,v])=>`<div class="pg"><b>${esc(k)} · ${v.length}</b>${v.slice().reverse().map(j=>{const on=S.cmp.includes(j.id);const ci=S.cmp.indexOf(j.id);return `<label class="${on?'on':''}"><input type="checkbox" data-pk="${j.id}" ${on?'checked':''} ${!on&&S.cmp.length>=5?'disabled':''}>${on?`<span class="dot" style="background:${CC[ci]}"></span>`:''}#${j._n} · ${fDate(j.exitTime)}${j.suit?' · '+esc(j.suit):''} · <span class="muted">${fmt(j.stats&&j.stats[crit[0]],crit[0]==='glideAfter'?2:0)}${crit[0]==='glideAfter'?'':' m'}</span></label>`;}).join('')}</div>`).join('')}</div></details>
+    <div class="chips">${sel.map((j,k)=>`<span class="chip" style="--cc:${CC[k]}"><i></i><a href="#s-${j.id}">${label(j)}${j.suit?' · '+esc(j.suit):''}</a><button aria-label="Quitar" data-rm="${j.id}">×</button></span>`).join('')}</div>
+    ${mixed?'<p class="note"><b>Ojo: estás mezclando Freak 5 y Onisei.</b></p>':''}
+  </section>
+  ${phrase}
   <section class="panel"><h2>Perfil: cuánto caes según avanzas</h2><div class="chartbox" id="mProfile"><p class="muted">Cargando trayectorias…</p></div><div class="readout" id="mr1"><span class="muted">Pasa el dedo por la gráfica para ver cuánto ha caído cada salto a la misma distancia.</span></div></section>
-  <div class="two">
-    <section class="panel"><h2>Velocidad horizontal</h2><div class="chartbox" id="mVh"></div><div class="readout" id="mr2"></div></section>
-    <section class="panel"><h2>Velocidad vertical</h2><div class="chartbox" id="mVd"></div><div class="readout" id="mr3"></div></section>
-  </div>`;
+  <section class="panel"><h2>Lo importante</h2><div class="tablewrap"><table class="nums cmp">${head}<tbody>${rowsFor(KEY)}</tbody></table></div>
+    <p class="note">En verde el mejor y en rojo el peor de los saltos elegidos.</p>
+    <details class="morej"><summary class="btn small">Ver todos los datos</summary><div class="modebar">${modeSeg()}</div><div class="tablewrap"><table class="nums cmp">${head}<tbody>${rowsFor(metricsFor(S.mode))}</tbody></table></div></details></section>
+  <details class="panel vel"><summary><h2 style="display:inline">Velocidades ▾</h2></summary><div class="two">
+    <section><h3 class="gtitle">Horizontal</h3><div class="chartbox" id="mVh"></div><div class="readout" id="mr2"></div></section>
+    <section><h3 class="gtitle">Vertical</h3><div class="chartbox" id="mVd"></div><div class="readout" id="mr3"></div></section></div></details>`;
+  S._pickOpen=false;
+  app.querySelectorAll('[data-csu]').forEach(b=>b.onclick=()=>{S.suit=b.dataset.csu;S.cmp=[];viewCompare();});
+  $('#cmpBy').onchange=e=>{S.cmpBy=e.target.value;viewCompare();};
+  app.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const a=agg(sAll.filter(j=>!j.excluded),crit[0],crit[2]);if(!a)return;const L=a.sorted;const q=b.dataset.q;
+    S.cmp=q==='bw'?[L[0],L[L.length-1]]:q==='b2w2'?[L[0],L[1],L[L.length-2],L[L.length-1]]:q==='b5'?L.slice(0,5):L.slice(-5).reverse();S.cmp=[...new Set(S.cmp.filter(Boolean).map(j=>j.id))];viewCompare();});
   app.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{S.cmp=S.cmp.filter(x=>x!==b.dataset.rm);if(!S.cmp.length)S.cmp=[sel.find(j=>j.id!==b.dataset.rm)?.id].filter(Boolean);viewCompare();});
-  app.querySelectorAll('[data-pk]').forEach(c=>c.onchange=()=>{const id=c.dataset.pk;if(c.checked){if(S.cmp.length<5)S.cmp.push(id);}else S.cmp=S.cmp.filter(x=>x!==id);if(!S.cmp.length)S.cmp=[id];S._pickOpen=true;viewCompare();});
-  if(S._pickOpen){const d=app.querySelector('.picker');if(d)d.open=true;S._pickOpen=false;}
+  app.querySelectorAll('[data-pk]').forEach(c=>c.onchange=()=>{const id=c.dataset.pk;if(c.checked){if(S.cmp.length<5)S.cmp.push(id);}else S.cmp=S.cmp.filter(x=>x!==id);if(!S.cmp.length)S.cmp=[id];S._pickOpen=true;const y=scrollY;viewCompare().then(()=>scrollTo(0,y));});
   bindMode(viewCompare);
-  $('#csu').onchange=e=>{S.suit=e.target.value;S.cmp=[];viewCompare();};
-  app.querySelectorAll('[data-qx]').forEach(b=>b.onclick=()=>{S.cmp=sAll.filter(j=>j.exitName===b.dataset.qx).slice(-5).map(j=>j.id);viewCompare();});
-  app.querySelectorAll('[data-qb]').forEach(b=>b.onclick=()=>{const a=agg(sAll,'d300','hi');if(a){S.cmp=a.sorted.slice(0,5).map(j=>j.id);viewCompare();}});
-  app.querySelectorAll('[data-qw]').forEach(b=>b.onclick=()=>{const a=agg(sAll,'d300','hi');if(a){S.cmp=a.sorted.slice(-5).reverse().map(j=>j.id);viewCompare();}});
   const trs=await Promise.all(sel.map(j=>getTrack(j.id).catch(()=>null)));
   if(route().v!=='compare')return;
   const ser=[];
@@ -1035,13 +1057,15 @@ async function viewCompare(){
     const idx=[];for(let i=E;i<=end;i++)idx.push(i);let vEnd=Math.min(tr.t.length-1,end);while(vEnd<tr.t.length-1&&tr.t[vEnd]-tr.t[end]<3)vEnd++;const vIdx=[];for(let i=E;i<=vEnd;i++)vIdx.push(i);
     ser.push({k,j,prof:{xs:idx.map(i=>d.cum[i]),ys:idx.map(i=>-(tr.h[E]-tr.h[i]))},vh:{xs:vIdx.map(i=>tr.t[i]-tr.t[E]),ys:vIdx.map(i=>d.vh[i]*3.6)},vd:{xs:vIdx.map(i=>tr.t[i]-tr.t[E]),ys:vIdx.map(i=>tr.vd[i]*3.6)}});});
   const rd=(id,unit,dec,pre)=>(v,vals)=>{const r=$(id);if(!r)return;if(v==null){r.innerHTML='';return;}r.innerHTML=`<span>${pre} <b>${fmt(v,pre==='a'?0:1)} ${pre==='a'?'m':'s'}</b></span>`+ser.map((s,q)=>vals[q]==null?'':`<span style="color:${CC[s.k]}">#${s.j._n} <b>${fmt(vals[q],dec)} ${unit}</b></span>`).join('');};
+  const drawVel=()=>{multiChart($('#mVh'),{series:ser.map(s=>({...s.vh,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad horizontal',onHover:rd('#mr2','km/h',0,'t')});
+    multiChart($('#mVd'),{series:ser.map(s=>({...s.vd,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad vertical',onHover:rd('#mr3','km/h',0,'t')});};
   const draw=()=>{
     const mx=Math.max(...ser.map(s=>s.prof.xs[s.prof.xs.length-1]||0));
-    multiChart($('#mProfile'),{series:ser.map(s=>({...s.prof,color:CC[s.k]})),xTitle:'avance desde la salida (m)',yTitle:'caída desde la salida (m)',h:300,yMaxZero:true,label:'Perfiles superpuestos',
+    multiChart($('#mProfile'),{series:ser.map(s=>({...s.prof,color:CC[s.k],w:2.6})),xTitle:'avance desde la salida (m)',yTitle:'caída desde la salida (m)',h:340,yMaxZero:true,label:'Perfiles superpuestos',
       lines:[{x1:0,y1:0,x2:mx,y2:-mx,color:'var(--muted)',label:'1:1',lx:Math.min(mx,300)*.6,ly:-Math.min(mx,300)*.6}],onHover:rd('#mr1','m',0,'a')});
-    multiChart($('#mVh'),{series:ser.map(s=>({...s.vh,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad horizontal',onHover:rd('#mr2','km/h',0,'t')});
-    multiChart($('#mVd'),{series:ser.map(s=>({...s.vd,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad vertical',onHover:rd('#mr3','km/h',0,'t')});
+    const vd=app.querySelector('details.vel');if(vd&&vd.open)drawVel();
   };
+  const vd=app.querySelector('details.vel');if(vd)vd.addEventListener('toggle',()=>{if(vd.open)drawVel();});
   draw();S.redraw=draw;
 }
 
@@ -1085,6 +1109,21 @@ function parseLoose(text,order,unit){
   return {pts:parsePts(pts.map(p=>p.join(' ')).join('\n')),unit:u};
 }
 const SKULL=`<svg class="skull" viewBox="0 0 64 64" aria-label="Peligro" role="img"><path d="M32 4C17 4 7 14 7 28c0 8 4 13 9 16v8c0 3 2 5 5 5h3v-6h4v6h8v-6h4v6h3c3 0 5-2 5-5v-8c5-3 9-8 9-16C57 14 47 4 32 4z" fill="currentColor"/><circle cx="22" cy="29" r="7" fill="var(--surface)"/><circle cx="42" cy="29" r="7" fill="var(--surface)"/><path d="M32 36l-4 8h8z" fill="var(--surface)"/></svg>`;
+function buildKml(tr,name){const {exit:E,open:O,land:L}=tr.marks;let a=E;while(a>0&&tr.t[E]-tr.t[a-1]<=3)a--;
+  const pt=i=>`${tr.lon[i].toFixed(6)},${tr.lat[i].toFixed(6)},${tr.h[i].toFixed(1)}`;const seg=(i0,i1)=>{const r=[];for(let i=i0;i<=i1;i++)r.push(pt(i));return r.join(' ');};
+  const xe=t=>String(t).replace(/[<&>]/g,c=>({'<':'&lt;','&':'&amp;','>':'&gt;'}[c]));const end=O??L;
+  const pm=(n,i)=>`<Placemark><name>${n}</name><styleUrl>#p</styleUrl><Point><altitudeMode>absolute</altitudeMode><coordinates>${pt(i)}</coordinates></Point></Placemark>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>${xe(name)}</name>
+<Style id="ff"><LineStyle><color>ff1b6dff</color><width>4</width></LineStyle></Style><Style id="cn"><LineStyle><color>ffe2a65b</color><width>3</width></LineStyle></Style><Style id="p"><IconStyle><scale>0.8</scale></IconStyle></Style>
+<Placemark><name>Caída libre</name><styleUrl>#ff</styleUrl><LineString><altitudeMode>absolute</altitudeMode><coordinates>${seg(a,end)}</coordinates></LineString></Placemark>
+${O!=null?`<Placemark><name>Campana</name><styleUrl>#cn</styleUrl><LineString><altitudeMode>absolute</altitudeMode><coordinates>${seg(O,L)}</coordinates></LineString></Placemark>`:''}
+${pm('Salida',E)}${O!=null?pm('Apertura',O):''}${pm('Aterrizaje',L)}</Document></kml>`;}
+const CRC_T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function zipOne(fname,text){const data=new TextEncoder().encode(text),nm=new TextEncoder().encode(fname);let crc=0xFFFFFFFF;for(const b of data)crc=CRC_T[(crc^b)&255]^(crc>>>8);crc=(crc^0xFFFFFFFF)>>>0;
+  const lh=new DataView(new ArrayBuffer(30));lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint32(14,crc,true);lh.setUint32(18,data.length,true);lh.setUint32(22,data.length,true);lh.setUint16(26,nm.length,true);
+  const ch=new DataView(new ArrayBuffer(46));ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,0,true);
+  const cdOff=30+nm.length+data.length,cdLen=46+nm.length;const ed=new DataView(new ArrayBuffer(22));ed.setUint32(0,0x06054b50,true);ed.setUint16(8,1,true);ed.setUint16(10,1,true);ed.setUint32(12,cdLen,true);ed.setUint32(16,cdOff,true);
+  return new Blob([lh.buffer,nm,data,ch.buffer,nm,ed.buffer],{type:'application/zip'});}
 function suitColor(x){const l=suitList();const i=l.indexOf(x);return ['var(--c1)','var(--c2)','var(--c3)','var(--c4)'][i<0?3:i%4];}
 function wallXAt(T,d){if(d<=T[0][1])return T[0][0];for(let i=1;i<T.length;i++){if(T[i][1]>=d){const a=T[i-1],b=T[i];if(b[1]===a[1])return a[0];return a[0]+(b[0]-a[0])*((d-a[1])/(b[1]-a[1]));}}return null;}
 function advAt(P,d){const i=P.dr.findIndex(v=>v>=d);if(i<0)return null;if(i===0)return P.hd[0];return P.hd[i-1]+(P.hd[i]-P.hd[i-1])*((d-P.dr[i-1])/((P.dr[i]-P.dr[i-1])||1));}
