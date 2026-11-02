@@ -255,6 +255,9 @@ table.nums td.warn{color:var(--warn);font-weight:600}
 .marg .dot{margin-right:6px}
 .wallpick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
 .wallpick select{font-family:var(--f-display);font-size:19px;font-weight:600;border:1.5px solid var(--ground-line);background:var(--surface);border-radius:8px;padding:8px 12px;max-width:100%}
+.tag.mkt{background:var(--sunk);color:var(--ink)}
+table.nums tr.mk td{background:color-mix(in srgb,var(--c2) 10%,transparent);font-weight:600}
+table.nums td .dot{margin-right:6px}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1187,7 +1190,12 @@ async function viewTerrain(){
     return `<tr><td class="r">${fmt(y)} m</td><td class="r">${fmt(x)} m</td><td class="r">${fmt(av)} m</td><td class="r">${fmt(mn)} m</td><td class="r ${cls(mn-x)}">${fmt(mn-x)} m</td><td class="r ${cls(av-x)}">${fmt(av-x)} m</td></tr>`;}).join('')}</tbody></table></div>
     <p class="note">Para cada caída de la pared: a qué distancia está la roca y a qué distancia ibas tú. Margen = tu distancia − la de la pared; en rojo si es negativo y en ámbar si es menor de 50 m.</p>`;
   }
-  $('#tJumps').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead><tbody>${ok.map(r=>`<tr><td><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`).join('')}</tbody></table></div>`;
+  {const sh=S.tShow||'worst';const marked=new Map();
+    if(sh==='worst'||sh==='best')for(const g of groups){const L=g.list;if(L.length)marked.set(sh==='worst'?L[0]:L[L.length-1],g);}
+    const avgRows=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<tr class="mk"><td>${multi?`<span class="dot" style="background:${g.color}"></span>`:''}<b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">Marcado arriba</span></td><td class="r ${cls(av)}">${fmt(av)} m</td><td class="r">—</td><td class="r">—</td></tr>`;}).join(''):'';
+    const order=[...marked.keys(),...ok.filter(r=>!marked.has(r))];
+    const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · marcado arriba</span>`:''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
+    $('#tJumps').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead><tbody>${avgRows}${order.map(row).join('')}</tbody></table></div>`;}
   // gráfica
   const show=S.tShow||'worst';
   const avgOf=L=>{if(!L.length)return null;let P;if(!H){const mx=Math.max(...L.map(r=>r.P.reach));const xs=[],ys=[];for(let x=0;x<=mx;x+=Math.max(1,mx/250)){const v=L.map(r=>dropAt(r.P,x)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;xs.push(x);ys.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:xs,dr:ys,reach:xs[xs.length-1]||0};}
