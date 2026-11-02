@@ -360,6 +360,10 @@ body::before{background:#13203F}
   table.stk td.me{background:transparent;border-left:3px solid var(--ff);padding-left:6px}
   table.stk td small{display:block}
 }
+.marg.chosen{border-left:5px solid var(--c4)!important}
+.tag.mkt.one{background:var(--c4);color:#fff}
+.onepick{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
+.onepick select{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px 10px;max-width:100%;width:100%}
 .mj-c{display:none}
 @media (max-width:760px){
   .mj-t{display:none}
@@ -918,7 +922,7 @@ async function viewJump(id){
   app.innerHTML=`<a class="back" href="#saltos">← Todos los saltos</a>
   ${j.demo?'<div class="banner warn"><p><b>Salto de ejemplo</b> generado para que veas cómo queda. No se guarda.</p></div>':''}
   <div class="jhead"><div class="bignum">${n==null?'—':'#'+n}</div><div class="meta"><div class="label">${fDate(j.exitTime)} · ${fTime(j.exitTime)}${j.jumpType?' · '+esc(j.jumpType):''}</div><h1>${j.exitName?esc(j.exitName):'Exit sin nombre'} <span class="obj ${j.objectType?'':'none'}">${j.objectType||'?'}</span>${j.excluded?' <span class="tag nc">No cuenta</span>':''}</h1>${j.area?`<div class="muted">${esc(j.area)}</div>`:''}</div>
-    ${exitPool.length>1?`<button class="btn" id="cmpExit">Comparar con ${esc(j.exitName)}${j.suit?' · '+suitLbl:''}</button>`:''}</div>
+    ${exitPool.length>1?`<button class="btn" id="cmpExit">Comparar con ${esc(j.exitName)}${j.suit?' · '+suitLbl:''}</button>`:''}${j.demo?'':`<button class="btn primary" id="toWall">Ponerlo sobre una pared</button>`}</div>
   <div class="tiles">
     <div class="tile hl"><div class="label">Caída libre</div><b>${fmt(st.ff,1)}<i>s</i></b></div>
     <div class="tile"><div class="label">Caes hasta abrir</div><b>${fmt(st.ffDrop)}<i>m</i></b></div>
@@ -958,6 +962,7 @@ async function viewJump(id){
   bindMode(()=>viewJump(id));
   app.querySelectorAll('[data-sc]').forEach(b=>b.onclick=()=>{S.scope=b.dataset.sc;const y=scrollY;viewJump(id).then(()=>scrollTo(0,y));});
   const ce=$('#cmpExit');if(ce)ce.onclick=()=>{S.cmp=exitPool.slice(-5).map(x=>x.id);if(!S.cmp.includes(id))S.cmp[0]=id;location.hash='comparar';};
+  {const tw=$('#toWall');if(tw)tw.onclick=()=>{S.tOneId=id;S.suit=j.suit||'';S.tPick=null;S.tExit='';location.hash='paredes';};}
   const form=$('#ficha');
   if(editable)form.addEventListener('submit',async e=>{e.preventDefault();
     const patch={exitName:$('#f-exit').value.trim(),objectType:$('#f-obj').value,area:$('#f-area').value.trim(),jumpType:$('#f-type').value,suit:$('#f-suit').value,canopy:$('#f-canopy').value.trim(),notes:$('#f-notes').value,excluded:$('#f-excl').checked};
@@ -1273,7 +1278,7 @@ async function viewTerrain(){
   app.innerHTML=`${statusBanner()}
   <div class="intro"><p>Guarda aquí el perfil de cada pared: para cada punto, a cuántos metros de distancia horizontal desde la salida está la roca y cuántos metros por debajo de la salida. La app lo compara con la trayectoria de tus saltos y te dice el margen que habrías tenido.</p></div>
   <div class="wallpick"><label class="label" for="wSel">Pared</label><select id="wSel">${list.map(t=>`<option value="${t.id}" ${S.tSel===t.id?'selected':''}>${esc(t.name||'Sin nombre')} · ${(t.points||[]).length} puntos${t.source==='baseline.ws'?' · Baseline':''}</option>`).join('')}<option value="new" ${S.tSel==='new'?'selected':''}>+ Añadir pared nueva</option></select></div>
-  <section class="panel"><h2>Tus saltos sobre esta pared <span class="seg" role="group" aria-label="Qué salto dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ts="${k}" aria-pressed="${(S.tShow||'worst')===k}">${l}</button>`).join('')}</span></h2><div id="tShowInfo"></div>
+  <section class="panel"><h2>Tus saltos sobre esta pared <span class="seg" role="group" aria-label="Qué salto dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ts="${k}" aria-pressed="${(S.tShow||'worst')===k}">${l}</button>`).join('')}</span></h2><div id="tOneBox"></div><div id="tShowInfo"></div>
     <div class="modebar suitbar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
     <div id="tSummary"></div>
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
@@ -1371,11 +1376,12 @@ async function viewTerrain(){
     app.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{S.ptMode=b.dataset.pm;rerender();});}
   {const sh=S.tShow||'worst';const marked=new Map();
     if(sh==='worst'||sh==='best')for(const g of groups){const L=g.list;if(L.length)marked.set(sh==='worst'?L[0]:L[L.length-1],g);}
+    const chosen=ok.find(r=>r.j.id===S.tOneId);
     const avgRows=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<tr class="mk"><td>${multi?`<span class="dot" style="background:${g.color}"></span>`:''}<b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">El de la gráfica</span></td><td class="r ${cls(av)}">${fmt(av)} m</td><td class="r">—</td><td class="r">—</td></tr>`;}).join(''):'';
     const order=[...marked.keys(),...ok.filter(r=>!marked.has(r))];
-    const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
+    const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${r===chosen?' <span class="tag mkt one">Elegido · en la gráfica</span>':''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
     const mc=v=>v==null?'':v<0?'bad':v<50?'warn':'good';
-    const card=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<div class="mcard ${g?'mk':''}" style="--mcc:${gc?gc.color:'var(--line)'}"><div class="mc1"><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}</div><div class="mc2"><span class="label">Margen mínimo</span><b class="${mc(r.min)}">${fmt(r.min)}<i>m</i></b></div><div class="mc3">${H?'al caer '+fmt(r.at)+' m':'a '+fmt(r.at)+' m de la salida'} · ${r.covers?'llega hasta el final de la pared':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m, antes del final de la pared`:`abre a ${fmt(r.P.reach)} m, antes del final de la pared`}</div></div>`;};
+    const card=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<div class="mcard ${g?'mk':''}" style="--mcc:${gc?gc.color:'var(--line)'}"><div class="mc1"><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${r===chosen?' <span class="tag mkt one">Elegido · en la gráfica</span>':''}</div><div class="mc2"><span class="label">Margen mínimo</span><b class="${mc(r.min)}">${fmt(r.min)}<i>m</i></b></div><div class="mc3">${H?'al caer '+fmt(r.at)+' m':'a '+fmt(r.at)+' m de la salida'} · ${r.covers?'llega hasta el final de la pared':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m, antes del final de la pared`:`abre a ${fmt(r.P.reach)} m, antes del final de la pared`}</div></div>`;};
     const avgCards=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<div class="mcard mk" style="--mcc:${multi?g.color:'var(--line)'}"><div class="mc1"><b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">El de la gráfica</span></div><div class="mc2"><span class="label">Margen mínimo medio</span><b class="${mc(av)}">${fmt(av)}<i>m</i></b></div></div>`;}).join(''):'';
     const thead=`<thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead>`;
     const top=[...marked.keys()],rest=ok.filter(r=>!marked.has(r));
@@ -1389,13 +1395,18 @@ async function viewTerrain(){
     else{const md=Math.max(...L.map(r=>r.P.dr[r.P.dr.length-1]));const ds=[],hs=[];for(let d=0;d<=md;d+=Math.max(1,md/250)){const v=L.map(r=>advAt(r.P,d)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;ds.push(d);hs.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:hs,dr:ds,reach:Math.max(0,...hs)};}
     return P.hd.length>1?{P,c:H?hclearance(P,T):clearance(P,T)}:null;};
   const series=[];const infos=[];
+  const r1=S.tOneId?ok.find(r=>r.j.id===S.tOneId):null;
+  {const box=$('#tOneBox');if(box&&ok.length){const opts=ok.slice().sort((a,b)=>(a.j.exitName||'~').localeCompare(b.j.exitName||'~')||a.j.exitTime-b.j.exitTime);
+    box.innerHTML=`<label class="onepick"><span class="label">Añadir un salto tuyo a la gráfica</span><select id="tOne"><option value="">— Ninguno —</option>${opts.map(r=>`<option value="${r.j.id}" ${r===r1?'selected':''}>#${r.j._n} ${esc(r.j.exitName||'Sin nombre')} · ${fDate(r.j.exitTime)}${r.j.suit?' · '+esc(r.j.suit):''} · margen ${fmt(r.min)} m</option>`).join('')}</select></label>`;
+    $('#tOne').onchange=e=>{S.tOneId=e.target.value||null;rerender();};}}
   for(const g of groups){const L=g.list;if(!L.length)continue;const w=L[0],b=L[L.length-1];
     const colW=multi?g.color:'var(--danger)',colB=multi?g.color:'var(--ok)',colA=multi?g.color:'var(--c2)';
     if(show==='all'){L.slice().reverse().forEach(r=>series.push({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:multi?g.color:(r===w?'var(--danger)':r===b?'var(--ok)':'var(--pre)'),w:multi?(r===w?2.6:1.4):(r===w||r===b?2.4:1.2),gap:r===w}));infos.push(`<span class="gchip"><span class="dot" style="background:${multi?g.color:'var(--ink)'}"></span>${multi?esc(g.name)+': ':''}${L.length} saltos</span>`);continue;}
     if(show==='avg'){const A=avgOf(L);if(A){series.push({xs:A.P.hd,ys:A.P.dr.map(v=>-v),color:colA,w:3,gap:true});infos.push(margHtml(multi?g.name+' · media':'Media de tus saltos',null,A.c,L.length,g.color));}continue;}
     const pk=show==='worst'?w:b;series.push({xs:pk.P.hd,ys:pk.P.dr.map(v=>-v),color:show==='worst'?colW:colB,w:3,gap:true});infos.push(margHtml((multi?g.name+' · ':'')+(show==='worst'?'peor salto':'mejor salto'),pk,pk,null,g.color));}
+  if(r1){series.push({xs:r1.P.hd,ys:r1.P.dr.map(v=>-v),color:'var(--c4)',w:3.4,gap:true});infos.push(margHtml('salto elegido',r1,r1,null,'var(--c4)').replace('class="marg ','class="marg chosen '));}
   function margHtml(lbl,pk,c,n,color){if(!c||c.min==null)return `<p class="note">${esc(lbl)}: sin datos suficientes.</p>`;return `<div class="marg ${c.min<0?'neg':c.min<50?'lowm':'okm'}" style="${multi?`border-left-color:${color}`:''}"><span>${multi?`<span class="dot" style="background:${color}"></span>`:''}${esc(lbl.charAt(0).toUpperCase()+lbl.slice(1))}${pk?`: <a href="#s-${pk.j.id}">#${pk.j._n} ${esc(pk.j.exitName||'Sin nombre')}</a> · ${fDate(pk.j.exitTime)}`:n?` (${n} saltos)`:''}</span><span>Margen ${H?'horizontal':'vertical'} mínimo <b>${fmt(c.min)} m</b> ${H?'al caer':'a'} ${fmt(c.at)} m${c.min<0?' · chocarías':''}</span></div>`;}
-  {const info=$('#tShowInfo');if(info)info.innerHTML=show==='all'?`<div class="gchips">${infos.join('')}</div>`:infos.join('');}
+  {const info=$('#tShowInfo');if(info){const ch=r1?infos.pop():'';info.innerHTML=(show==='all'?`<div class="gchips">${infos.join('')}</div>`:infos.join(''))+ch;}}
   const gapFn=(v,y)=>{if(!H){const td=terrainAt(T,v);if(td==null)return null;return {x1:v,y1:y,x2:v,y2:-td,m:td+y};}const wx=wallXAt(T,-y);if(wx==null||-y<T[0][1]-1e-9)return null;return {x1:v,y1:y,x2:wx,y2:y,m:v-wx};};
   const draw=()=>multiChart($('#tChart'),{series,gapFn,ground:{xs:T.map(p=>p[0]),ys:T.map(p=>-p[1])},xTitle:'distancia horizontal desde la salida (m)',yTitle:'metros por debajo de la salida',h:400,yMaxZero:true,label:'Saltos sobre el perfil del suelo',
     onHover:(v)=>{const r=$('#tRead');if(!r)return;if(v==null){r.innerHTML='';return;}const td=terrainAt(T,v);const ds=ok.map(q=>dropAt(q.P,v)).filter(x=>x!=null);
