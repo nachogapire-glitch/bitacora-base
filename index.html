@@ -347,6 +347,16 @@ body::before{background:#13203F}
 .btn.primary{background:var(--ff);border-color:var(--ff)}
 .section-title{color:var(--ff)}
 .banner.off{border-left:4px solid var(--ok)}
+@media (max-width:760px){
+  .top .wrap{gap:8px 10px;padding-block:8px}
+  .top .brand{order:1}
+  .top #impBtn{order:2;padding:6px 10px;font-size:13px}
+  .top .tabs{order:3;flex:1 1 100%;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px}
+  .top .tabs a{font-size:15px;padding:6px 2px;text-align:center;letter-spacing:.02em}
+  .brand b{font-size:22px}
+}
+@media (max-width:440px){.top .brand span{display:none}}
+@media (max-width:370px){.top .tabs a{font-size:13.5px}}
 </style>
 
 <header class="top">
