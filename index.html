@@ -360,8 +360,22 @@ body::before{background:#13203F}
   table.stk td.me{background:transparent;border-left:3px solid var(--ff);padding-left:6px}
   table.stk td small{display:block}
 }
-.marg.chosen{border-left:5px solid var(--c4)!important}
+.marg.chosen{border-left-width:5px;border-left-style:solid}
 .tag.mkt.one{background:var(--c4);color:#fff}
+.addrow{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin:2px 0 8px}
+.addrow>.label{width:64px;flex:0 0 auto}
+.achip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 4px 3px 10px;font-size:14px;background:var(--surface);max-width:100%}
+.achip i{width:12px;height:12px;border-radius:50%;background:var(--ac);flex:0 0 auto}
+.achip.wl i{border-radius:2px;height:4px;width:16px}
+.achip.main{padding-right:10px} .achip.main i{border-radius:2px;height:10px;width:16px;background:var(--ground-line)}
+.achip a{text-decoration:none;font-weight:600}
+.achip button{border:0;background:var(--sunk);border-radius:50%;width:24px;height:24px;cursor:pointer;line-height:1;font-size:15px}
+.addsel{font:inherit;font-size:15px;border:1px dashed var(--muted);border-radius:999px;background:transparent;padding:5px 10px;max-width:100%;color:var(--ink)}
+.owrap{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:4px;font-size:13.5px;width:100%}
+.ow{border-left:4px solid var(--ac);padding-left:6px}
+.marg .ow b{font-size:17px;font-family:var(--f-display)} .ow b.neg{color:var(--danger)} .ow b.low{color:var(--amber)}
+.wct{font-size:19px;margin:14px 0 4px}
+.skull.sm{width:16px;height:16px;vertical-align:-3px;margin-right:3px}
 .onepick{display:flex;flex-direction:column;gap:4px;margin:4px 0 10px}
 .onepick select{font:inherit;font-size:16px;border:1px solid var(--line);border-radius:6px;background:var(--bg);padding:8px 10px;max-width:100%;width:100%}
 .mj-c{display:none}
@@ -781,7 +795,7 @@ function exitsOf(list){const m={};for(const j of list){if(!j.exitName)continue;(
 function multiChart(el,cfg){
   const W=Math.max(260,el.clientWidth),H=cfg.h||250,m={l:50,r:14,t:18,b:30};
   let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
-  for(const s of (cfg.ground?[...cfg.series,cfg.ground]:cfg.series))for(let i=0;i<s.xs.length;i++){const x=s.xs[i],y=s.ys[i];if(!isFinite(y))continue;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
+  for(const s of [...cfg.series,...(cfg.ground?[cfg.ground]:[]),...(cfg.walls||[])])for(let i=0;i<s.xs.length;i++){const x=s.xs[i],y=s.ys[i];if(!isFinite(y))continue;x0=Math.min(x0,x);x1=Math.max(x1,x);y0=Math.min(y0,y);y1=Math.max(y1,y);}
   if(cfg.yMin!=null)y0=Math.min(y0,cfg.yMin);if(cfg.yMaxZero)y1=Math.max(y1,0);
   const yt=niceTicks(y0,y1,5);y0=Math.min(y0,yt[0]);y1=Math.max(y1,yt[yt.length-1]);x0=Math.min(0,x0);
   const xt=niceTicks(x0,x1,Math.max(3,Math.floor((W-60)/85)));
@@ -791,6 +805,7 @@ function multiChart(el,cfg){
   for(const v of xt){if(v<x0||v>x1)continue;const x=X(v);s+=`<line class="grid" x1="${x}" x2="${x}" y1="${m.t}" y2="${H-m.b}" stroke-dasharray="2 4"/><text x="${x}" y="${H-m.b+15}" text-anchor="middle">${fmt(v,0)}</text>`;}
   s+=`<text x="${W-m.r}" y="${H-3}" text-anchor="end">${esc(cfg.xTitle||'')}</text><text x="${m.l}" y="${m.t-6}">${esc(cfg.yTitle||'')}</text><g clip-path="url(#${cid})">`;
   if(cfg.ground){const g=cfg.ground,n=g.xs.length;const pts=g.xs.map((x,i)=>`${X(x).toFixed(1)},${Y(g.ys[i]).toFixed(1)}`).join(' ');s+=`<polygon points="${X(g.xs[0]).toFixed(1)},${H-m.b} ${pts} ${X(g.xs[n-1]).toFixed(1)},${H-m.b}" fill="var(--ground)"/><polyline points="${pts}" fill="none" stroke="var(--ground-line)" stroke-width="2"/>${g.xs.map((x,i)=>`<circle cx="${X(x).toFixed(1)}" cy="${Y(g.ys[i]).toFixed(1)}" r="3" fill="var(--ground-line)"/>`).join('')}`;}
+  for(const w of cfg.walls||[]){const pts=w.xs.map((x,i)=>`${X(x).toFixed(1)},${Y(w.ys[i]).toFixed(1)}`).join(' ');s+=`<polyline points="${pts}" fill="none" stroke="${w.color}" stroke-width="2.6" stroke-dasharray="8 5" stroke-linejoin="round"/>${w.xs.map((x,i)=>`<circle cx="${X(x).toFixed(1)}" cy="${Y(w.ys[i]).toFixed(1)}" r="2.8" fill="${w.color}"/>`).join('')}`;}
   for(const ln of cfg.lines||[])s+=`<line x1="${X(ln.x1)}" y1="${Y(ln.y1)}" x2="${X(ln.x2)}" y2="${Y(ln.y2)}" stroke="${ln.color}" stroke-width="1.2" stroke-dasharray="5 4"/>${ln.label?`<text x="${X(ln.lx)+4}" y="${Y(ln.ly)-4}" style="fill:${ln.color}">${esc(ln.label)}</text>`:''}`;
   for(const se of cfg.series)s+=runsPath(0,0,se.xs.length-1,i=>X(se.xs[i]),i=>isFinite(se.ys[i])?Y(se.ys[i]):NaN,()=>se.color,se.w||2.2,se.dash||'');
   if(cfg.tri)s+=`<g class="tri"><path class="tri-fill" fill="var(--ff-soft)" stroke="none"/><path class="tri-line" fill="none" stroke="var(--ink)" stroke-width="1.6" stroke-dasharray="5 3"/><circle class="tri-pt" r="5" fill="var(--ff)" stroke="var(--surface)" stroke-width="2"/><text class="tri-h" text-anchor="middle" style="fill:var(--ink);font-weight:600"></text><text class="tri-v" style="fill:var(--ink);font-weight:600"></text><text class="tri-g" style="fill:var(--ff);font-weight:600"></text></g>`;
@@ -1280,7 +1295,7 @@ async function viewTerrain(){
   <div class="wallpick"><label class="label" for="wSel">Pared</label><select id="wSel">${list.map(t=>`<option value="${t.id}" ${S.tSel===t.id?'selected':''}>${esc(t.name||'Sin nombre')} · ${(t.points||[]).length} puntos${t.source==='baseline.ws'?' · Baseline':''}</option>`).join('')}<option value="new" ${S.tSel==='new'?'selected':''}>+ Añadir pared nueva</option></select></div>
   <section class="panel"><h2>Tus saltos sobre esta pared <span class="seg" role="group" aria-label="Qué salto dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ts="${k}" aria-pressed="${(S.tShow||'worst')===k}">${l}</button>`).join('')}</span></h2><div id="tOneBox"></div><div id="tShowInfo"></div>
     <div class="modebar suitbar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
-    <div id="tSummary"></div>
+    <div id="tSummary"></div><div id="tWallCmp"></div>
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
     <div class="readout" id="tRead"></div>
     <div id="tTiles"></div></section>
@@ -1376,12 +1391,12 @@ async function viewTerrain(){
     app.querySelectorAll('[data-pm]').forEach(b=>b.onclick=()=>{S.ptMode=b.dataset.pm;rerender();});}
   {const sh=S.tShow||'worst';const marked=new Map();
     if(sh==='worst'||sh==='best')for(const g of groups){const L=g.list;if(L.length)marked.set(sh==='worst'?L[0]:L[L.length-1],g);}
-    const chosen=ok.find(r=>r.j.id===S.tOneId);
+    const chosenSet=new Set((S.tAddJ||[]));
     const avgRows=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<tr class="mk"><td>${multi?`<span class="dot" style="background:${g.color}"></span>`:''}<b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">El de la gráfica</span></td><td class="r ${cls(av)}">${fmt(av)} m</td><td class="r">—</td><td class="r">—</td></tr>`;}).join(''):'';
     const order=[...marked.keys(),...ok.filter(r=>!marked.has(r))];
-    const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${r===chosen?' <span class="tag mkt one">Elegido · en la gráfica</span>':''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
+    const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${chosenSet.has(r.j.id)?' <span class="tag mkt one">Añadido · en la gráfica</span>':''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
     const mc=v=>v==null?'':v<0?'bad':v<50?'warn':'good';
-    const card=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<div class="mcard ${g?'mk':''}" style="--mcc:${gc?gc.color:'var(--line)'}"><div class="mc1"><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${r===chosen?' <span class="tag mkt one">Elegido · en la gráfica</span>':''}</div><div class="mc2"><span class="label">Margen mínimo</span><b class="${mc(r.min)}">${fmt(r.min)}<i>m</i></b></div><div class="mc3">${H?'al caer '+fmt(r.at)+' m':'a '+fmt(r.at)+' m de la salida'} · ${r.covers?'llega hasta el final de la pared':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m, antes del final de la pared`:`abre a ${fmt(r.P.reach)} m, antes del final de la pared`}</div></div>`;};
+    const card=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<div class="mcard ${g?'mk':''}" style="--mcc:${gc?gc.color:'var(--line)'}"><div class="mc1"><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · el de la gráfica</span>`:''}${chosenSet.has(r.j.id)?' <span class="tag mkt one">Añadido · en la gráfica</span>':''}</div><div class="mc2"><span class="label">Margen mínimo</span><b class="${mc(r.min)}">${fmt(r.min)}<i>m</i></b></div><div class="mc3">${H?'al caer '+fmt(r.at)+' m':'a '+fmt(r.at)+' m de la salida'} · ${r.covers?'llega hasta el final de la pared':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m, antes del final de la pared`:`abre a ${fmt(r.P.reach)} m, antes del final de la pared`}</div></div>`;};
     const avgCards=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<div class="mcard mk" style="--mcc:${multi?g.color:'var(--line)'}"><div class="mc1"><b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">El de la gráfica</span></div><div class="mc2"><span class="label">Margen mínimo medio</span><b class="${mc(av)}">${fmt(av)}<i>m</i></b></div></div>`;}).join(''):'';
     const thead=`<thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead>`;
     const top=[...marked.keys()],rest=ok.filter(r=>!marked.has(r));
@@ -1395,22 +1410,43 @@ async function viewTerrain(){
     else{const md=Math.max(...L.map(r=>r.P.dr[r.P.dr.length-1]));const ds=[],hs=[];for(let d=0;d<=md;d+=Math.max(1,md/250)){const v=L.map(r=>advAt(r.P,d)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;ds.push(d);hs.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:hs,dr:ds,reach:Math.max(0,...hs)};}
     return P.hd.length>1?{P,c:H?hclearance(P,T):clearance(P,T)}:null;};
   const series=[];const infos=[];
-  const r1=S.tOneId?ok.find(r=>r.j.id===S.tOneId):null;
-  {const box=$('#tOneBox');if(box&&ok.length){const opts=ok.slice().sort((a,b)=>(a.j.exitName||'~').localeCompare(b.j.exitName||'~')||a.j.exitTime-b.j.exitTime);
-    box.innerHTML=`<label class="onepick"><span class="label">Añadir un salto tuyo a la gráfica</span><select id="tOne"><option value="">— Ninguno —</option>${opts.map(r=>`<option value="${r.j.id}" ${r===r1?'selected':''}>#${r.j._n} ${esc(r.j.exitName||'Sin nombre')} · ${fDate(r.j.exitTime)}${r.j.suit?' · '+esc(r.j.suit):''} · margen ${fmt(r.min)} m</option>`).join('')}</select></label>`;
-    $('#tOne').onchange=e=>{S.tOneId=e.target.value||null;rerender();};}}
+  if(S.tOneId){S.tAddJ=[...new Set([...(S.tAddJ||[]),S.tOneId])];S.tOneId=null;}
+  const JC=['var(--c4)','var(--c5)','#14B8A6','#CA8A04','#64748B'],WC=['#0EA5E9','#D946EF','#F43F5E','#65A30D','#F59E0B'];
+  const addJ=(S.tAddJ||[]).map(id=>ok.find(r=>r.j.id===id)).filter(Boolean).slice(0,5);
+  const mainName=saved?(saved.name||'Pared'):((S.tName||'').trim()||'Pared nueva');
+  S.tAddW=(S.tAddW||[]).filter(id=>id!==(saved&&saved.id)&&S.terrain.some(t=>t.id===id));
+  const addW=S.tAddW.map((id,k)=>{const t=S.terrain.find(x=>x.id===id);const P=(t.points||[]).map(p=>[+p[0],+p[1]]).filter(p=>isFinite(p[0])&&isFinite(p[1])).sort((a,b)=>a[0]-b[0]);return P.length>=2?{id,name:t.name||'Pared',T:P,color:WC[k%WC.length]}:null;}).filter(Boolean);
+  {const box=$('#tOneBox');if(box&&ok.length){const opts=ok.filter(r=>!addJ.includes(r)).sort((a,b)=>(a.j.exitName||'~').localeCompare(b.j.exitName||'~')||a.j.exitTime-b.j.exitTime);
+    const wOpts=S.terrain.filter(t=>t.id!==(saved&&saved.id)&&!S.tAddW.includes(t.id)).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    box.innerHTML=`<div class="addrow"><span class="label">Saltos</span>${addJ.map((r,k)=>`<span class="achip" style="--ac:${JC[k]}"><i></i><a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a><button type="button" data-rj="${r.j.id}" aria-label="Quitar">×</button></span>`).join('')}${addJ.length<5?`<select id="tOne" class="addsel"><option value="">+ Añadir salto</option>${opts.map(r=>`<option value="${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')} · ${fDate(r.j.exitTime)}${r.j.suit?' · '+esc(r.j.suit):''} · margen ${fmt(r.min)} m</option>`).join('')}</select>`:''}</div>
+      <div class="addrow"><span class="label">Paredes</span><span class="achip main"><i></i>${esc(mainName)}</span>${addW.map(w=>`<span class="achip wl" style="--ac:${w.color}"><i></i>${esc(w.name)}<button type="button" data-rw="${w.id}" aria-label="Quitar">×</button></span>`).join('')}${wOpts.length?`<select id="tAddW" class="addsel"><option value="">+ Añadir otra pared</option>${wOpts.map(t=>`<option value="${t.id}">${esc(t.name||'Pared')}</option>`).join('')}</select>`:''}</div>`;
+    const so=$('#tOne');if(so)so.onchange=e=>{if(e.target.value){S.tAddJ=[...(S.tAddJ||[]),e.target.value];rerender();}};
+    const sw=$('#tAddW');if(sw)sw.onchange=e=>{if(e.target.value){S.tAddW=[...S.tAddW,e.target.value];rerender();}};
+    box.querySelectorAll('[data-rj]').forEach(b=>b.onclick=()=>{S.tAddJ=(S.tAddJ||[]).filter(x=>x!==b.dataset.rj);rerender();});
+    box.querySelectorAll('[data-rw]').forEach(b=>b.onclick=()=>{S.tAddW=S.tAddW.filter(x=>x!==b.dataset.rw);rerender();});}}
+  const clr=(P,TT)=>H?hclearance(P,TT):clearance(P,TT);
+  const SKS=SKULL.replace('class="skull"','class="skull sm"');
+  {const el=$('#tWallCmp');if(el){if(!addW.length)el.innerHTML='';else{
+    const walls=[{name:mainName,T,color:'var(--ground-line)',main:true},...addW];
+    const tbl=(L,title)=>{const rows=walls.map(w=>{const cs=L.map(r=>({r,c:w.main?r:clr(r.P,w.T)})).filter(x=>x.c&&x.c.min!=null);if(!cs.length)return `<tr><td><span class="dot" style="background:${w.color}"></span>${esc(w.name)}</td><td class="r muted" colspan="4">ningún salto llega</td></tr>`;
+      const n=cs.length,ng=cs.filter(x=>x.c.min<0).length,low=cs.filter(x=>x.c.min>=0&&x.c.min<50).length;cs.sort((a,b)=>a.c.min-b.c.min);const wv=cs[0],av=cs.reduce((a,x)=>a+x.c.min,0)/n;
+      return `<tr${w.main?' class="mk"':''}><td><span class="dot" style="background:${w.color}"></span>${esc(w.name)}${w.main?' <span class="muted">(principal)</span>':''}</td><td class="r ${ng?'worst':''}">${ng?SKS:''}${fmt(100*ng/n,0)} %</td><td class="r ${low?'warn':''}">${fmt(100*low/n,0)} %</td><td class="r ${cls(wv.c.min)}">${fmt(wv.c.min)} m <small class="muted">#${wv.r.j._n}</small></td><td class="r ${cls(av)}">${fmt(av)} m</td></tr>`;}).join('');
+      return `${title?`<h3 class="gtitle">${title}</h3>`:''}<div class="tablewrap"><table class="nums"><thead><tr><th>Pared</th><th class="r">Choque</th><th class="r">Muy justo</th><th class="r">Peor margen</th><th class="r">Margen medio</th></tr></thead><tbody>${rows}</tbody></table></div>`;};
+    el.innerHTML=`<h3 class="wct">Comparar paredes</h3>`+groups.filter(g=>g.list.length).map(g=>tbl(g.list,multi?`<span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${g.list.length} saltos`:'')).join('')+`<p class="note">Los mismos saltos volados en cada pared. Margen ${H?'horizontal':'vertical'}: rojo choque, ámbar menos de 50 m.</p>`;}}}
   for(const g of groups){const L=g.list;if(!L.length)continue;const w=L[0],b=L[L.length-1];
     const colW=multi?g.color:'var(--danger)',colB=multi?g.color:'var(--ok)',colA=multi?g.color:'var(--c2)';
     if(show==='all'){L.slice().reverse().forEach(r=>series.push({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:multi?g.color:(r===w?'var(--danger)':r===b?'var(--ok)':'var(--pre)'),w:multi?(r===w?2.6:1.4):(r===w||r===b?2.4:1.2),gap:r===w}));infos.push(`<span class="gchip"><span class="dot" style="background:${multi?g.color:'var(--ink)'}"></span>${multi?esc(g.name)+': ':''}${L.length} saltos</span>`);continue;}
     if(show==='avg'){const A=avgOf(L);if(A){series.push({xs:A.P.hd,ys:A.P.dr.map(v=>-v),color:colA,w:3,gap:true});infos.push(margHtml(multi?g.name+' · media':'Media de tus saltos',null,A.c,L.length,g.color));}continue;}
     const pk=show==='worst'?w:b;series.push({xs:pk.P.hd,ys:pk.P.dr.map(v=>-v),color:show==='worst'?colW:colB,w:3,gap:true});infos.push(margHtml((multi?g.name+' · ':'')+(show==='worst'?'peor salto':'mejor salto'),pk,pk,null,g.color));}
-  if(r1){series.push({xs:r1.P.hd,ys:r1.P.dr.map(v=>-v),color:'var(--c4)',w:3.4,gap:true});infos.push(margHtml('salto elegido',r1,r1,null,'var(--c4)').replace('class="marg ','class="marg chosen '));}
+  const addInfos=addJ.map((r,k)=>{series.push({xs:r.P.hd,ys:r.P.dr.map(v=>-v),color:JC[k],w:3.2,gap:true});
+    const others=addW.map(w=>{const c=clr(r.P,w.T);return c&&c.min!=null?`<span class="ow" style="--ac:${w.color}">${esc(w.name)}: <b class="${c.min<0?'neg':c.min<50?'low':''}">${c.min<0?'choca ('+fmt(c.min)+' m)':fmt(c.min)+' m'}</b></span>`:`<span class="ow" style="--ac:${w.color}">${esc(w.name)}: no llega</span>`;}).join('');
+    return margHtml('salto añadido',r,r,null,JC[k]).replace('class="marg ',`style="border-left-color:${JC[k]}" class="marg chosen `).replace(/<\/div>$/,others?`<span class="owrap">${others}</span></div>`:'</div>');});
   function margHtml(lbl,pk,c,n,color){if(!c||c.min==null)return `<p class="note">${esc(lbl)}: sin datos suficientes.</p>`;return `<div class="marg ${c.min<0?'neg':c.min<50?'lowm':'okm'}" style="${multi?`border-left-color:${color}`:''}"><span>${multi?`<span class="dot" style="background:${color}"></span>`:''}${esc(lbl.charAt(0).toUpperCase()+lbl.slice(1))}${pk?`: <a href="#s-${pk.j.id}">#${pk.j._n} ${esc(pk.j.exitName||'Sin nombre')}</a> · ${fDate(pk.j.exitTime)}`:n?` (${n} saltos)`:''}</span><span>Margen ${H?'horizontal':'vertical'} mínimo <b>${fmt(c.min)} m</b> ${H?'al caer':'a'} ${fmt(c.at)} m${c.min<0?' · chocarías':''}</span></div>`;}
-  {const info=$('#tShowInfo');if(info){const ch=r1?infos.pop():'';info.innerHTML=(show==='all'?`<div class="gchips">${infos.join('')}</div>`:infos.join(''))+ch;}}
+  {const info=$('#tShowInfo');if(info){info.innerHTML=(show==='all'?`<div class="gchips">${infos.join('')}</div>`:infos.join(''))+addInfos.join('');}}
   const gapFn=(v,y)=>{if(!H){const td=terrainAt(T,v);if(td==null)return null;return {x1:v,y1:y,x2:v,y2:-td,m:td+y};}const wx=wallXAt(T,-y);if(wx==null||-y<T[0][1]-1e-9)return null;return {x1:v,y1:y,x2:wx,y2:y,m:v-wx};};
-  const draw=()=>multiChart($('#tChart'),{series,gapFn,ground:{xs:T.map(p=>p[0]),ys:T.map(p=>-p[1])},xTitle:'distancia horizontal desde la salida (m)',yTitle:'metros por debajo de la salida',h:400,yMaxZero:true,label:'Saltos sobre el perfil del suelo',
+  const draw=()=>multiChart($('#tChart'),{series,gapFn,ground:{xs:T.map(p=>p[0]),ys:T.map(p=>-p[1])},walls:addW.map(w=>({xs:w.T.map(p=>p[0]),ys:w.T.map(p=>-p[1]),color:w.color})),xTitle:'distancia horizontal desde la salida (m)',yTitle:'metros por debajo de la salida',h:400,yMaxZero:true,label:'Saltos sobre el perfil del suelo',
     onHover:(v)=>{const r=$('#tRead');if(!r)return;if(v==null){r.innerHTML='';return;}const td=terrainAt(T,v);const ds=ok.map(q=>dropAt(q.P,v)).filter(x=>x!=null);
-      r.innerHTML=`<span>a <b>${fmt(v)} m</b></span><span style="color:var(--ground-line)">pared <b>${td==null?'—':fmt(td)+' m'}</b></span>${ds.length?`<span>tu media <b>${fmt(ds.reduce((a,b)=>a+b,0)/ds.length)} m</b></span><span style="color:var(--danger)">peor <b>${fmt(Math.max(...ds))} m</b></span>${td!=null?`<span>margen peor <b>${fmt(td-Math.max(...ds))} m</b></span>`:''}`:''}`;}});
+      r.innerHTML=`<span>a <b>${fmt(v)} m</b></span><span style="color:var(--ground-line)">${addW.length?esc(mainName):'pared'} <b>${td==null?'—':fmt(td)+' m'}</b></span>${addW.map(w=>{const t2=terrainAt(w.T,v);return `<span style="color:${w.color}">${esc(w.name)} <b>${t2==null?'—':fmt(t2)+' m'}</b></span>`;}).join('')}${ds.length?`<span>tu media <b>${fmt(ds.reduce((a,b)=>a+b,0)/ds.length)} m</b></span><span style="color:var(--danger)">peor <b>${fmt(Math.max(...ds))} m</b></span>${td!=null?`<span>margen peor <b>${fmt(td-Math.max(...ds))} m</b></span>`:''}`:''}`;}});
   draw();S.redraw=draw;
 }
 
