@@ -563,11 +563,12 @@ function lineChart(el,cfg){
   for(const mk of cfg.marks||[]){if(mk.i==null||mk.i<a||mk.i>b)continue;const x=X(xs[mk.i]);s+=`<line x1="${x}" x2="${x}" y1="${m.t}" y2="${H-m.b}" stroke="${mk.color}" stroke-width="1.2" stroke-dasharray="4 3"/><text x="${x+4}" y="${m.t+9}" style="fill:${mk.color}">${esc(mk.label)}</text>`;}
   if(cfg.pick!=null&&cfg.pick>=a&&cfg.pick<=b){const x=X(xs[cfg.pick]);s+=`<line x1="${x}" x2="${x}" y1="${m.t}" y2="${H-m.b}" stroke="var(--ink)" stroke-width="1.5"/>`;}
   const dots=cfg.series.filter(se=>!se.nodot);
-  s+=`<g class="cur" visibility="hidden"><line x1="0" x2="0" y1="${m.t}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1"/>${dots.map(()=>`<circle r="3.5" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/>`).join('')}</g>`;
+  s+=`<g class="cur" visibility="hidden"><line x1="0" x2="0" y1="${m.t}" y2="${H-m.b}" stroke="var(--muted)" stroke-width="1"/>${dots.map(()=>`<circle r="3.5" fill="var(--surface)" stroke="var(--ink)" stroke-width="1.5"/>`).join('')}${cfg.valFmt?`<g class="vlab"><rect rx="5" height="24" fill="var(--ink)"/><text style="fill:var(--surface);font-size:15px;font-weight:700;font-family:var(--f-display)"></text></g>`:''}</g>`;
   s+=`<rect x="${m.l}" y="${m.t}" width="${W-m.l-m.r}" height="${H-m.t-m.b}" fill="transparent" style="cursor:crosshair"/></svg>`;
   el.innerHTML=s;
   const svg=el.firstChild,g=svg.querySelector('.cur'),ln=g.querySelector('line'),cs=g.querySelectorAll('circle');
-  CURSORS.push(i=>{if(i==null||i<a||i>b){g.setAttribute('visibility','hidden');return;}g.setAttribute('visibility','visible');const x=X(xs[i]);ln.setAttribute('x1',x);ln.setAttribute('x2',x);dots.forEach((se,k)=>{const v=se.ys[i];if(v==null||!isFinite(v)){cs[k].setAttribute('visibility','hidden');return;}cs[k].setAttribute('visibility','visible');cs[k].setAttribute('cx',x);cs[k].setAttribute('cy',YY(se)(v));});});
+  CURSORS.push(i=>{if(i==null||i<a||i>b){g.setAttribute('visibility','hidden');return;}g.setAttribute('visibility','visible');const x=X(xs[i]);ln.setAttribute('x1',x);ln.setAttribute('x2',x);dots.forEach((se,k)=>{const v=se.ys[i];if(v==null||!isFinite(v)){cs[k].setAttribute('visibility','hidden');return;}cs[k].setAttribute('visibility','visible');cs[k].setAttribute('cx',x);cs[k].setAttribute('cy',YY(se)(v));});
+    const vl=g.querySelector('.vlab');if(vl){const se=dots[0],v=se.ys[i];if(v==null||!isFinite(v)){vl.setAttribute('visibility','hidden');}else{vl.setAttribute('visibility','visible');const t=vl.querySelector('text');t.textContent=cfg.valFmt(v,i);const tw=t.textContent.length*8.5+16;let lx=x+10;if(lx+tw>W-m.r)lx=x-10-tw;let ly=Math.max(m.t+2,Math.min(H-m.b-26,YY(se)(v)-34));const r=vl.querySelector('rect');r.setAttribute('x',lx);r.setAttribute('y',ly);r.setAttribute('width',tw);t.setAttribute('x',lx+8);t.setAttribute('y',ly+17);}}});
   const idxAt=ev=>{const r=svg.getBoundingClientRect();const v=x0+(ev.clientX-r.left-m.l)/(W-m.l-m.r)*(x1-x0);return nearestIdx(xs,a,b,v);};
   svg.addEventListener('pointermove',ev=>setCursor(idxAt(ev)));
   svg.addEventListener('pointerleave',()=>setCursor(null));
@@ -887,7 +888,7 @@ async function viewJump(id){
     lineChart($('#cSpeed'),{xs:tr.t,from,to:cut,bands,series:[{ys:vh,color:'var(--ff)'},{ys:vd,color:'var(--canopy)'},{ys:sp,color:'var(--ink)',w:1.6},{ys:d.agl,color:'var(--muted)',w:1.3,y2:true,nodot:true}],
       y2:{title:'altura (m)',min:0},marks,xTitle:'segundos desde la salida',yTitle:'km/h',h:260,yMin:0,zero:true,pick:S.pick,label:'Velocidades y altura',
       onPick:editable?(i=>{S.pick=i;drawAll();showAdjust();}):null});
-    lineChart($('#cGlide'),{xs:tr.t,from:E,to:cut,bands,series:[{ys:glide,colorAt}],xTitle:'segundos desde la salida',yTitle:'planeo (: 1)',h:170,yMin:0,yMax:4,label:'Planeo instantáneo',
+    lineChart($('#cGlide'),{xs:tr.t,from:E,to:cut,bands,series:[{ys:glide,colorAt}],xTitle:'segundos desde la salida',yTitle:'planeo (: 1)',h:200,yMin:0,yMax:4,label:'Planeo instantáneo',valFmt:(v,i)=>`${fmt(v,2)} : 1 · ${fmt(tr.t[i]-tr.t[E],1)} s`,
       lines:[{x1:tr.t[E],y1:1,x2:tr.t[cut],y2:1,color:'var(--muted)',label:'1:1',lx:tr.t[E],ly:1}]});
     planChart($('#cPlan'),tr,colorAt,from,to);
     if(S.cursor!=null)setCursor(S.cursor);
