@@ -1127,8 +1127,8 @@ async function viewTerrain(){
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
     <div class="readout" id="tRead"></div></section>
   <div class="two">
-    <section class="panel"><h2>Punto a punto</h2><div id="tPts"></div></section>
     <section class="panel"><h2>Margen de cada salto</h2><div id="tJumps"></div></section>
+    <section class="panel"><h2>Punto a punto</h2><div id="tPts"></div></section>
   </div>`;
   const rerender=()=>{const y=scrollY;return viewTerrain().then(()=>scrollTo(0,y));};
   $('#wSel').onchange=e=>{S.tSel=e.target.value;S.tUserNew=S.tSel==='new';S.tRows=null;if(S.tSel==='new'){S.tExit='';}rerender();};
