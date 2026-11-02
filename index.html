@@ -322,6 +322,30 @@ body::before{background:var(--hdr-bg)!important}
 .rec b{color:var(--c1)}
 .panel h2{color:var(--ink)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---------- Color: atardecer en la pared ---------- */
+:root{--sky:#1C8FD6;--amber:#E39A12;--sunset:linear-gradient(100deg,#13203F 0%,#24365F 38%,#8A3B4A 72%,#E0651C 100%);--bg:#E9EEF4}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--sky:#4FB3F0;--amber:#F2B23E;--bg:#0D131A}}
+:root[data-theme="dark"]{--sky:#4FB3F0;--amber:#F2B23E;--bg:#0D131A}
+.top{background:var(--sunset)!important;border-bottom:0!important;box-shadow:0 2px 14px rgba(19,32,63,.25);color:#fff}
+body::before{background:#13203F}
+.top .brand b{color:#fff} .top .brand span{color:#FFE2CC}
+.top .tabs a{color:rgba(255,255,255,.8)}
+.top .tabs a:hover{color:#fff;background:rgba(255,255,255,.14)}
+.top .tabs a[aria-current="page"]{color:#fff;background:var(--ff);box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.top .btn.primary{background:#fff;border-color:#fff;color:#C2470A}
+.top .btn.primary:hover{filter:none;background:#FFF1E6}
+.row{border-left:5px solid var(--sc,var(--line))}
+.row .num{color:var(--sc,var(--ink))}
+.panel{border-top:3px solid var(--canopy)}
+.panel h2{color:var(--ink)}
+.tiles .tile.pw{border-top:4px solid var(--danger);background:color-mix(in srgb,var(--danger) 7%,var(--surface))}
+.tiles .tile.pa{border-top:4px solid var(--amber);background:color-mix(in srgb,var(--amber) 9%,var(--surface))}
+.tiles .tile.pb{border-top:4px solid var(--ok);background:color-mix(in srgb,var(--ok) 8%,var(--surface))}
+.tile.pw b{color:var(--danger)} .tile.pa b{color:var(--amber)} .tile.pb b{color:var(--ok)}
+.seg button[aria-pressed="true"]{background:var(--ff);color:#fff}
+.btn.primary{background:var(--ff);border-color:var(--ff)}
+.section-title{color:var(--ff)}
 </style>
 
 <header class="top">
@@ -698,7 +722,9 @@ function multiChart(el,cfg){
   const show=v=>{drawTri(v==null?(cfg.tri?cfg.tri.x:0):v);if(v==null){g.setAttribute('visibility','hidden');cfg.onHover&&cfg.onHover(null);return;}g.setAttribute('visibility','visible');ln.setAttribute('x1',X(v));ln.setAttribute('x2',X(v));
     const vals=cfg.series.map((se,k)=>{const n=se.xs.length;if(v<se.xs[0]-1e-9||v>se.xs[n-1]+1e-9){cs[k].setAttribute('visibility','hidden');return null;}const i=nearestIdx(se.xs,0,n-1,v);const y=se.ys[i];if(!isFinite(y)){cs[k].setAttribute('visibility','hidden');return null;}cs[k].setAttribute('visibility','visible');cs[k].setAttribute('cx',X(se.xs[i]));cs[k].setAttribute('cy',Y(y));return y;});
     const gg=g.querySelector('.gaps');if(gg){let gs='';if(cfg.gapFn){cfg.series.forEach((se,k)=>{if(!se.gap||vals[k]==null)return;const r=cfg.gapFn(v,vals[k],se);if(!r)return;const ax=X(r.x1),ay=Y(r.y1),bx=X(r.x2),by=Y(r.y2);const col=r.m<0?'var(--danger)':r.m<50?'var(--warn)':'var(--ok)';const mx=(ax+bx)/2,my=(ay+by)/2;const lbl=`${r.m>=0?'':'−'}${fmt(Math.abs(r.m))} m`;const tw=lbl.length*9+14;const lx=Math.min(Math.max(mx+8,m.l),W-m.r-tw),ly=Math.min(Math.max(my,m.t+14),H-m.b-6);
-      gs+=`<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="3" stroke-linecap="round"/><circle cx="${bx}" cy="${by}" r="4" fill="${col}"/><rect x="${lx}" y="${ly-15}" width="${tw}" height="22" rx="5" fill="${col}"/><text x="${lx+7}" y="${ly+1}" style="fill:#fff;font-size:15px;font-weight:700;font-family:var(--f-display)">${lbl}</text>`;});}gg.innerHTML=gs;}
+      gs+=`<line x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}" stroke="${col}" stroke-width="3" stroke-linecap="round"/><circle cx="${bx}" cy="${by}" r="4" fill="${col}"/><rect x="${lx}" y="${ly-15}" width="${tw}" height="22" rx="5" fill="${col}"/><text x="${lx+7}" y="${ly+1}" style="fill:#fff;font-size:15px;font-weight:700;font-family:var(--f-display)">${lbl}</text>`;});}if(cfg.diff){const ok=vals.map((y,k)=>({y,k})).filter(o=>o.y!=null);if(ok.length>1){const hi=ok.reduce((a,b)=>b.y>a.y?b:a),lo=ok.reduce((a,b)=>b.y<a.y?b:a);const dm=hi.y-lo.y;const xx=X(v),ya=Y(hi.y),yb=Y(lo.y);const lbl=`${fmt(dm)} m de diferencia`;const tw=lbl.length*8.2+16;const left=xx+tw+12>W-m.r;const lx=left?xx-tw-10:xx+10,ly=Math.min(Math.max((ya+yb)/2,m.t+14),H-m.b-6);
+      gs+=`<line x1="${xx}" y1="${ya}" x2="${xx}" y2="${yb}" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><line x1="${xx-7}" x2="${xx+7}" y1="${ya}" y2="${ya}" stroke="${cfg.series[hi.k].color}" stroke-width="3"/><line x1="${xx-7}" x2="${xx+7}" y1="${yb}" y2="${yb}" stroke="${cfg.series[lo.k].color}" stroke-width="3"/><rect x="${lx}" y="${ly-15}" width="${tw}" height="24" rx="5" fill="var(--ink)"/><text x="${lx+8}" y="${ly+2}" style="fill:var(--surface);font-size:15px;font-weight:700;font-family:var(--f-display)">${lbl}</text>`;}}
+      gg.innerHTML=gs;}
     cfg.onHover&&cfg.onHover(v,vals);};
   svg.addEventListener('pointermove',ev=>{const r=svg.getBoundingClientRect();show(Math.max(x0,Math.min(x1,x0+(ev.clientX-r.left-m.l)/(W-m.l-m.r)*(x1-x0))));});
   svg.addEventListener('pointerleave',()=>show(null));
@@ -777,7 +803,7 @@ function viewList(){
     let list=isDemo?[{...DEMO.meta,_n:null}]:all.slice().reverse();
     if(!isDemo)list=bySuit(list,S.suit);list=list.filter(j=>(!S.filter.type||j.objectType===S.filter.type)&&(!q||[j.exitName,j.area,j.notes,j.jumpType,j.suit,j.canopy].join(' ').toLowerCase().includes(q)));
     $('#count').textContent=isDemo?'Ejemplo':`${list.length} de ${all.length} saltos`;
-    $('#rows').innerHTML=list.map(j=>{const st=j.stats||{};return `<a class="row" href="#s-${j.id}">
+    $('#rows').innerHTML=list.map(j=>{const st=j.stats||{};return `<a class="row" href="#s-${j.id}" style="--sc:${j.suit?suitColor(j.suit):'var(--line)'}">
       <div class="num">${j._n==null?'—':j._n}<small>${j._n==null?'':'SALTO'}</small></div>
       ${sparkSvg(j.spark)}
       <div class="what"><div class="exitname">${j.exitName?esc(j.exitName):'<span class="muted">Exit sin nombre</span>'} <span class="obj ${j.objectType?'':'none'}" title="${esc(OBJ[j.objectType]||'Tipo sin indicar')}">${j.objectType||'?'}</span>${j.demo?'<span class="tag">Ejemplo</span>':''}${j.local?'<span class="tag">Sin guardar</span>':''}${j.excluded?'<span class="tag nc">No cuenta</span>':''}</div>
@@ -962,9 +988,9 @@ function viewNumbers(){
     r.sort((a,b)=>a.v-b.v);const avg=r.reduce((a,q)=>a+q.v,0)/r.length;const worst=adv?r[r.length-1]:r[0],best=adv?r[0]:r[r.length-1];
     const what=adv?'caído':'avanzado';const who=q=>`<span class="note"><a href="#s-${q.j.id}">#${q.j._n} ${esc(q.j.exitName||'Sin nombre')}</a> · ${fDate(q.j.exitTime)}</span>`;
     out.innerHTML=`<div class="tiles t3">
-      <div class="tile bad"><div class="label">Peor · ${what}</div><b>${fmt(worst.v)}<i>m</i></b>${who(worst)}</div>
-      <div class="tile"><div class="label">Media · ${what}</div><b>${fmt(avg)}<i>m</i></b><span class="note">de ${r.length} saltos</span></div>
-      <div class="tile good"><div class="label">Mejor · ${what}</div><b>${fmt(best.v)}<i>m</i></b>${who(best)}</div></div>
+      <div class="tile bad pw"><div class="label">Peor · ${what}</div><b>${fmt(worst.v)}<i>m</i></b>${who(worst)}</div>
+      <div class="tile pa"><div class="label">Media · ${what}</div><b>${fmt(avg)}<i>m</i></b><span class="note">de ${r.length} saltos</span></div>
+      <div class="tile good pb"><div class="label">Mejor · ${what}</div><b>${fmt(best.v)}<i>m</i></b>${who(best)}</div></div>
       ${use.length>r.length?`<p class="note">${use.length-r.length===1?'1 salto abrió antes de llegar y no cuenta.':`${use.length-r.length} saltos abrieron antes de llegar y no cuentan.`}</p>`:''}`;};
   let calcTA,calcTD;$('#calcA').oninput=()=>{clearTimeout(calcTA);calcTA=setTimeout(()=>runCalc(true),400);};$('#calcD').oninput=()=>{clearTimeout(calcTD);calcTD=setTimeout(()=>runCalc(false),400);};
   runCalc(true);runCalc(false);
@@ -978,7 +1004,7 @@ function viewNumbers(){
     const gm={};for(const r of res){const k=S.suit?(S.suit==='-'?'Sin traje':S.suit):(r.j.suit||'Sin traje');(gm[k]=gm[k]||[]).push(r);}
     const keys=Object.keys(gm).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));const multi=keys.length>1;
     const blk=k=>{const L=gm[k],n=L.length,w=L[0],b=L[n-1],ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',av=L.reduce((s,r)=>s+r.min,0)/n;
-      return `${multi?`<h3 class="gtitle"><span class="dot" style="background:${suitColor(k)}"></span>${esc(k)} · ${n} salto${n===1?'':'s'}</h3>`:''}<div class="tiles t3"><div class="tile ${w.min<0?'bad':''}"><div class="label">Peor margen</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')}</span></div><div class="tile"><div class="label">Margen medio</div><b>${fmt(av)}<i>m</i></b></div><div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>
+      return `${multi?`<h3 class="gtitle"><span class="dot" style="background:${suitColor(k)}"></span>${esc(k)} · ${n} salto${n===1?'':'s'}</h3>`:''}<div class="tiles t3"><div class="tile pw ${w.min<0?'bad':''}"><div class="label">Peor margen</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')}</span></div><div class="tile pa"><div class="label">Margen medio</div><b>${fmt(av)}<i>m</i></b></div><div class="tile pb"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>
       <div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(k):''} habrías chocado con esa roca.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m por encima.'}</p><div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div><div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
     sum.innerHTML=keys.map(blk).join('')+'<p class="note">Margen = metros que pasabas por encima de la roca. Es lo que habría pasado volando como en esos saltos, no la probabilidad real de chocar.</p>';
     const show=S.nShow||'worst';const series=[];
@@ -1061,12 +1087,12 @@ async function viewCompare(){
   sel.forEach((j,k)=>{const tr=trs[k];if(!tr)return;const d=derive(tr);const {exit:E,open:O,land:L}=tr.marks;const end=O!=null?O:L;
     const idx=[];for(let i=E;i<=end;i++)idx.push(i);let vEnd=Math.min(tr.t.length-1,end);while(vEnd<tr.t.length-1&&tr.t[vEnd]-tr.t[end]<3)vEnd++;const vIdx=[];for(let i=E;i<=vEnd;i++)vIdx.push(i);
     ser.push({k,j,prof:{xs:idx.map(i=>d.cum[i]),ys:idx.map(i=>-(tr.h[E]-tr.h[i]))},vh:{xs:vIdx.map(i=>tr.t[i]-tr.t[E]),ys:vIdx.map(i=>d.vh[i]*3.6)},vd:{xs:vIdx.map(i=>tr.t[i]-tr.t[E]),ys:vIdx.map(i=>tr.vd[i]*3.6)}});});
-  const rd=(id,unit,dec,pre)=>(v,vals)=>{const r=$(id);if(!r)return;if(v==null){r.innerHTML='';return;}r.innerHTML=`<span>${pre} <b>${fmt(v,pre==='a'?0:1)} ${pre==='a'?'m':'s'}</b></span>`+ser.map((s,q)=>vals[q]==null?'':`<span style="color:${CC[s.k]}">#${s.j._n} <b>${fmt(vals[q],dec)} ${unit}</b></span>`).join('');};
+  const rd=(id,unit,dec,pre)=>(v,vals)=>{const r=$(id);if(!r)return;if(v==null){r.innerHTML='';return;}r.innerHTML=`<span>${pre} <b>${fmt(v,pre==='a'?0:1)} ${pre==='a'?'m':'s'}</b></span>`+ser.map((s,q)=>vals[q]==null?'':`<span style="color:${CC[s.k]}">#${s.j._n} <b>${fmt(vals[q],dec)} ${unit}</b></span>`).join('')+(()=>{if(pre!=='a')return '';const ok=ser.map((s,q)=>({s,y:vals[q]})).filter(o=>o.y!=null);if(ok.length<2)return '';const hi=ok.reduce((a,b)=>b.y>a.y?b:a),lo=ok.reduce((a,b)=>b.y<a.y?b:a);return `<span>diferencia <b>${fmt(hi.y-lo.y)} m</b> (#${hi.s.j._n} cae menos que #${lo.s.j._n})</span>`;})();};
   const drawVel=()=>{multiChart($('#mVh'),{series:ser.map(s=>({...s.vh,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad horizontal',onHover:rd('#mr2','km/h',0,'t')});
     multiChart($('#mVd'),{series:ser.map(s=>({...s.vd,color:CC[s.k]})),xTitle:'segundos desde la salida',yTitle:'km/h',h:220,yMin:0,label:'Velocidad vertical',onHover:rd('#mr3','km/h',0,'t')});};
   const draw=()=>{
     const mx=Math.max(...ser.map(s=>s.prof.xs[s.prof.xs.length-1]||0));
-    multiChart($('#mProfile'),{series:ser.map(s=>({...s.prof,color:CC[s.k],w:2.6})),xTitle:'avance desde la salida (m)',yTitle:'caída desde la salida (m)',h:340,yMaxZero:true,label:'Perfiles superpuestos',
+    multiChart($('#mProfile'),{series:ser.map(s=>({...s.prof,color:CC[s.k],w:2.6})),xTitle:'avance desde la salida (m)',yTitle:'caída desde la salida (m)',h:340,yMaxZero:true,label:'Perfiles superpuestos',diff:true,
       lines:[{x1:0,y1:0,x2:mx,y2:-mx,color:'var(--muted)',label:'1:1',lx:Math.min(mx,300)*.6,ly:-Math.min(mx,300)*.6}],onHover:rd('#mr1','m',0,'a')});
     const vd=app.querySelector('details.vel');if(vd&&vd.open)drawVel();
   };
@@ -1139,7 +1165,7 @@ function zipOne(fname,text){const data=new TextEncoder().encode(text),nm=new Tex
   const ch=new DataView(new ArrayBuffer(46));ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);ch.setUint32(24,data.length,true);ch.setUint16(28,nm.length,true);ch.setUint32(42,0,true);
   const cdOff=30+nm.length+data.length,cdLen=46+nm.length;const ed=new DataView(new ArrayBuffer(22));ed.setUint32(0,0x06054b50,true);ed.setUint16(8,1,true);ed.setUint16(10,1,true);ed.setUint32(12,cdLen,true);ed.setUint32(16,cdOff,true);
   return new Blob([lh.buffer,nm,data,ch.buffer,nm,ed.buffer],{type:'application/zip'});}
-function suitColor(x){const l=suitList();const i=l.indexOf(x);return ['var(--c1)','var(--c2)','var(--c3)','var(--c4)'][i<0?3:i%4];}
+function suitColor(x){if(/freak/i.test(x||''))return 'var(--c1)';if(/onisei/i.test(x||''))return 'var(--sky)';const l=suitList();const i=l.indexOf(x);return ['var(--c1)','var(--c2)','var(--c3)','var(--c4)'][i<0?3:i%4];}
 function wallXAt(T,d){if(d<=T[0][1])return T[0][0];for(let i=1;i<T.length;i++){if(T[i][1]>=d){const a=T[i-1],b=T[i];if(b[1]===a[1])return a[0];return a[0]+(b[0]-a[0])*((d-a[1])/(b[1]-a[1]));}}return null;}
 function advAt(P,d){const i=P.dr.findIndex(v=>v>=d);if(i<0)return null;if(i===0)return P.hd[0];return P.hd[i-1]+(P.hd[i]-P.hd[i-1])*((d-P.dr[i-1])/((P.dr[i]-P.dr[i-1])||1));}
 function hclearance(P,T){const maxD=Math.max(...T.map(p=>p[1]));const top=Math.min(maxD,P.dr[P.dr.length-1]);let min=Infinity,at=null;
@@ -1240,9 +1266,9 @@ async function viewTerrain(){
   const blockHtml=g=>{const L=g.list;if(!L.length)return '';const w=L[0],b=L[L.length-1],n=L.length,ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',avgM=L.reduce((s,r)=>s+r.min,0)/n;
     const head=multi?`<h3 class="gtitle"><span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${n} salto${n===1?'':'s'}</h3>`:'';
     if(g._tiles)return `${head}<div class="tiles t3">
-    <div class="tile ${w.min<0?'bad':''}"><div class="label">Peor margen ${H?'horizontal':'vertical'}</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')} · ${H?'al caer':'a'} ${fmt(w.at)} m</span></div>
-    <div class="tile"><div class="label">Margen medio</div><b>${fmt(avgM)}<i>m</i></b></div>
-    <div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>`;
+    <div class="tile pw ${w.min<0?'bad':''}"><div class="label">Peor margen ${H?'horizontal':'vertical'}</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')} · ${H?'al caer':'a'} ${fmt(w.at)} m</span></div>
+    <div class="tile pa"><div class="label">Margen medio</div><b>${fmt(avgM)}<i>m</i></b></div>
+    <div class="tile pb"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>`;
     return `${head}<div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(g.name):''} habrías ${H?'tocado la pared':'pasado por debajo de la pared'} en algún punto del perfil.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m de margen.'}</p>
       <div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div>
       <div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Margen de más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
