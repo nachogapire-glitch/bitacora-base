@@ -1110,6 +1110,7 @@ async function viewTerrain(){
   <div class="wallpick"><label class="label" for="wSel">Pared</label><select id="wSel">${list.map(t=>`<option value="${t.id}" ${S.tSel===t.id?'selected':''}>${esc(t.name||'Sin nombre')} · ${(t.points||[]).length} puntos${t.source==='baseline.ws'?' · Baseline':''}</option>`).join('')}<option value="new" ${S.tSel==='new'?'selected':''}>+ Añadir pared nueva</option></select></div>
   <section class="panel"><h2>Tus saltos sobre esta pared <span class="seg" role="group" aria-label="Qué salto dibujar">${[['worst','Peor salto'],['avg','Media'],['best','Mejor salto'],['all','Todos']].map(([k,l])=>`<button type="button" data-ts="${k}" aria-pressed="${(S.tShow||'worst')===k}">${l}</button>`).join('')}</span></h2><div id="tShowInfo"></div>
     <div class="modebar suitbar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
+    <div id="tSummary"></div>
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
     <div class="readout" id="tRead"></div></section>
   <div class="two terr">
@@ -1135,7 +1136,6 @@ async function viewTerrain(){
         <div class="plist"><div class="pbtns"><button class="btn small" data-tp="all">Todos</button><button class="btn small" data-tp="none">Ninguno</button>${S.tExit?`<button class="btn small" data-tp="exit">Solo ${esc(S.tExit)}</button>`:''}${manual?'<button class="btn small" data-tp="reset">Volver a usar filtros</button>':''}</div>
         ${pickGroups.map(([k,v])=>`<div class="pg"><b>${esc(k)}</b>${v.slice().reverse().map(j=>`<label><input type="checkbox" data-tpk="${j.id}" ${(manual?S.tPick.includes(j.id):pool.includes(j))?'checked':''}> #${j._n} · ${fDate(j.exitTime)}${j.suit?' · '+esc(j.suit):''}${j.excluded?' · no cuenta':''}</label>`).join('')}</div>`).join('')}</div></details>
       <p class="note">${manual?'Comparando solo los saltos que has elegido (los filtros de traje y exit no se aplican). ':''}Se comparan ${pool.length} salto${pool.length===1?'':'s'}. Se supone que vuelas en la misma línea que el perfil, desde la salida hasta abrir.</p>
-      <div id="tSummary"></div>
     </section>
   </div>
   <div class="two">
