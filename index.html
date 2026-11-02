@@ -1325,7 +1325,7 @@ async function viewTerrain(){
     </section>
   </div>
   <div class="two">
-    <section class="panel"><h2>Margen de cada salto</h2><div id="tJumps"></div></section>
+
     <section class="panel"><h2>Punto a punto</h2><div id="tPts"></div></section>
   </div>`;
   const rerender=()=>{const y=scrollY;return viewTerrain().then(()=>scrollTo(0,y));};
@@ -1401,7 +1401,7 @@ async function viewTerrain(){
     const thead=`<thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead>`;
     const top=[...marked.keys()],rest=ok.filter(r=>!marked.has(r));
     const restL=sh==='all'?ok:rest;
-    $('#tJumps').innerHTML=`${avgRows||top.length?`<div class="tablewrap mj-t"><table class="nums">${thead}<tbody>${avgRows}${top.map(row).join('')}</tbody></table></div><div class="mj-c">${avgCards}${top.map(card).join('')}</div>`:''}
+    if($('#tJumps'))$('#tJumps').innerHTML=`${avgRows||top.length?`<div class="tablewrap mj-t"><table class="nums">${thead}<tbody>${avgRows}${top.map(row).join('')}</tbody></table></div><div class="mj-c">${avgCards}${top.map(card).join('')}</div>`:''}
       <details class="morej" ${S.tJOpen?'open':''}><summary class="btn small">${S.tJOpen?'Ocultar':'Ver'} ${sh==='all'?'todos los saltos':'el resto de saltos'} (${restL.length})</summary><div class="tablewrap mj-t"><table class="nums">${thead}<tbody>${restL.map(row).join('')}</tbody></table></div><div class="mj-c">${restL.map(card).join('')}</div></details>`;
     const dj=app.querySelector('.morej');if(dj)dj.addEventListener('toggle',e=>{S.tJOpen=e.target.open;const sm=dj.querySelector('summary');sm.textContent=sm.textContent.replace(/^(Ver|Ocultar)/,e.target.open?'Ocultar':'Ver');});}
   // gráfica
