@@ -1112,7 +1112,8 @@ async function viewTerrain(){
     <div class="modebar suitbar"><span class="label">Traje</span> <span class="seg" role="group" aria-label="Traje">${suitList().map(x=>`<button type="button" data-tsu="${esc(x)}" aria-pressed="${S.suit===x}"><span class="dot" style="background:${suitColor(x)}"></span>${esc(x)}</button>`).join('')}<button type="button" data-tsu="" aria-pressed="${!S.suit}">Los dos, por separado</button></span></div>
     <div id="tSummary"></div>
     <div class="chartbox" id="tChart">${T.length>=2?'<p class="muted">Cargando trayectorias…</p>':'<p class="muted">Mete al menos dos puntos para ver la comparación.</p>'}</div>
-    <div class="readout" id="tRead"></div></section>
+    <div class="readout" id="tRead"></div>
+    <div id="tTiles"></div></section>
   <div class="two terr">
     <section class="panel"><h2>${saved?'Editar pared':'Nueva pared'}</h2>
       <label class="fld"><span class="label">Nombre</span><input id="tName" value="${esc(S.tName||'')}" placeholder="p. ej. Ventosa · exit principal"></label>
@@ -1181,13 +1182,15 @@ async function viewTerrain(){
   const groups=(()=>{if(S.suit||S.tPick&&S.tPick.length)return [{name:S.suit||'',color:S.suit?suitColor(S.suit):'var(--ink)',list:ok}];const m={};for(const r of ok){const k=r.j.suit||'Sin traje';(m[k]=m[k]||[]).push(r);}const ks=Object.keys(m).sort((a,b)=>suitList().indexOf(a)-suitList().indexOf(b));return ks.length>1?ks.map(k=>({name:k,color:suitColor(k),list:m[k]})):[{name:ks[0]||'',color:'var(--ink)',list:ok}];})();
   const multi=groups.length>1;
   const blockHtml=g=>{const L=g.list;if(!L.length)return '';const w=L[0],b=L[L.length-1],n=L.length,ng=L.filter(r=>r.min<0).length,low=L.filter(r=>r.min>=0&&r.min<50).length,safe=n-ng-low,pc=x=>fmt(100*x/n,0)+' %',avgM=L.reduce((s,r)=>s+r.min,0)/n;
-    return `${multi?`<h3 class="gtitle"><span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${n} salto${n===1?'':'s'}</h3>`:''}<div class="tiles t3">
+    const head=multi?`<h3 class="gtitle"><span class="dot" style="background:${g.color}"></span>${esc(g.name)} · ${n} salto${n===1?'':'s'}</h3>`:'';
+    if(g._tiles)return `${head}<div class="tiles t3">
     <div class="tile ${w.min<0?'bad':''}"><div class="label">Peor margen ${H?'horizontal':'vertical'}</div><b>${fmt(w.min)}<i>m</i></b><span class="note">#${w.j._n} ${esc(w.j.exitName||'')} · ${H?'al caer':'a'} ${fmt(w.at)} m</span></div>
     <div class="tile"><div class="label">Margen medio</div><b>${fmt(avgM)}<i>m</i></b></div>
-    <div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>
-    <div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(g.name):''} habrías ${H?'tocado la pared':'pasado por debajo de la pared'} en algún punto del perfil.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m de margen.'}</p>
+    <div class="tile"><div class="label">Mejor margen</div><b>${fmt(b.min)}<i>m</i></b><span class="note">#${b.j._n} ${esc(b.j.exitName||'')}</span></div></div>`;
+    return `${head}<div class="risk ${ng?'bad':low?'mid':'ok'}">${ng?SKULL:''}<div><p class="riskt">${ng?`Con ${ng} de tus ${n} saltos${multi?' con '+esc(g.name):''} habrías ${H?'tocado la pared':'pasado por debajo de la pared'} en algún punto del perfil.`:low?'Ningún salto choca, pero algunos pasan muy justos.':'Todos pasan con más de 50 m de margen.'}</p>
       <div class="riskbar"><span class="r1" style="width:${100*ng/n}%"></span><span class="r2" style="width:${100*low/n}%"></span><span class="r3" style="width:${100*safe/n}%"></span></div>
       <div class="riskleg"><span class="r1">Choque: <b>${pc(ng)}</b> (${ng})</span><span class="r2">Muy justo, menos de 50 m: <b>${pc(low)}</b> (${low})</span><span class="r3">Margen de más de 50 m: <b>${pc(safe)}</b> (${safe})</span></div></div></div>`;};
+  {const tt=$('#tTiles');if(tt)tt.innerHTML=ok.length?groups.map(g=>blockHtml({...g,_tiles:true})).join(''):'';}
   $('#tSummary').innerHTML=ok.length?groups.map(blockHtml).join('')+`<p class="note" style="margin-top:4px">Porcentaje de tus saltos que habrían chocado o ido muy justos si los hubieras volado igual en esta pared. No es la probabilidad real de matarte: eso depende de tu salida, del viento y de cómo vueles ese día.</p>`:'<p class="note">Ningún salto llega hasta los puntos del perfil antes de abrir.</p>';
   // punto a punto (dos formas de leerlo)
   {const pm=S.ptMode||(H?'caida':'dist');
