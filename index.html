@@ -253,6 +253,8 @@ table.nums td.warn{color:var(--warn);font-weight:600}
 .gtitle:first-child{margin-top:4px}
 .gchips{display:flex;gap:14px;flex-wrap:wrap;font-size:13.5px;margin:2px 0 8px}
 .marg .dot{margin-right:6px}
+.wallpick{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.wallpick select{font-family:var(--f-display);font-size:19px;font-weight:600;border:1.5px solid var(--ground-line);background:var(--surface);border-radius:8px;padding:8px 12px;max-width:100%}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1093,11 +1095,10 @@ async function viewTerrain(){
   const rowHtml=(r,i)=>`<tr><td class="r mono muted">${i+1}</td>${cols.map(c=>`<td><input class="pt" data-r="${i}" data-c="${c}" type="number" inputmode="decimal" step="any" min="0" value="${esc(r[c])}" aria-label="${colName[c]} punto ${i+1}"></td>`).join('')}<td><button class="xbtn" data-del="${i}" aria-label="Quitar punto ${i+1}">×</button></td></tr>`;
   app.innerHTML=`${statusBanner()}
   <div class="intro"><p>Guarda aquí el perfil de cada pared: para cada punto, a cuántos metros de distancia horizontal desde la salida está la roca y cuántos metros por debajo de la salida. La app lo compara con la trayectoria de tus saltos y te dice el margen que habrías tenido.</p></div>
-  <div class="walls">${list.map(t=>`<button class="wall ${S.tSel===t.id?'on':''}" data-w="${t.id}"><b>${esc(t.name||'Sin nombre')}</b><small>${(t.points||[]).length} puntos${t.exit?' · '+esc(t.exit):''}${t.source==='baseline.ws'?' · Baseline':''}</small></button>`).join('')}<button class="wall add ${S.tSel==='new'?'on':''}" data-w="new"><b>+ Añadir pared</b><small>mete los puntos de un perfil</small></button></div>
+  <div class="wallpick"><label class="label" for="wSel">Pared</label><select id="wSel">${list.map(t=>`<option value="${t.id}" ${S.tSel===t.id?'selected':''}>${esc(t.name||'Sin nombre')} · ${(t.points||[]).length} puntos${t.source==='baseline.ws'?' · Baseline':''}</option>`).join('')}<option value="new" ${S.tSel==='new'?'selected':''}>+ Añadir pared nueva</option></select></div>
   <div class="two terr">
     <section class="panel"><h2>${saved?'Editar pared':'Nueva pared'}</h2>
       <label class="fld"><span class="label">Nombre</span><input id="tName" value="${esc(S.tName||'')}" placeholder="p. ej. Ventosa · exit principal"></label>
-      <label class="fld"><span class="label">Exit de tus saltos (opcional)</span><select id="tLink"><option value="">Ninguno</option>${exitsAll.map(([k])=>`<option ${S.tExitLink===k?'selected':''}>${esc(k)}</option>`).join('')}</select></label>
       <div class="modebar"><span class="label">Orden de los datos</span> <span class="seg" role="group" aria-label="Orden de las columnas"><button type="button" data-wo="dc" aria-pressed="${S.wOrder!=='cd'}">Distancia · caída</button><button type="button" data-wo="cd" aria-pressed="${S.wOrder==='cd'}">Caída · distancia</button></span></div>
       <div class="tablewrap"><table class="pts"><thead><tr><th class="r">#</th>${cols.map(c=>`<th>${colName[c]} (m)</th>`).join('')}<th></th></tr></thead><tbody id="tBody">${S.tRows.map(rowHtml).join('')}</tbody></table></div>
       <div class="actions" style="margin-top:8px"><button class="btn small" id="tAdd">+ Añadir punto</button>
@@ -1130,7 +1131,7 @@ async function viewTerrain(){
     <section class="panel"><h2>Margen de cada salto</h2><div id="tJumps"></div></section>
   </div>`;
   const rerender=()=>{const y=scrollY;return viewTerrain().then(()=>scrollTo(0,y));};
-  app.querySelectorAll('[data-w]').forEach(b=>b.onclick=()=>{S.tSel=b.dataset.w;S.tUserNew=S.tSel==='new';S.tRows=null;if(S.tSel==='new'){S.tExit='';}rerender();});
+  $('#wSel').onchange=e=>{S.tSel=e.target.value;S.tUserNew=S.tSel==='new';S.tRows=null;if(S.tSel==='new'){S.tExit='';}rerender();};
   let tm;app.querySelectorAll('input.pt').forEach(inp=>inp.oninput=()=>{S.tRows[+inp.dataset.r][+inp.dataset.c]=inp.value;clearTimeout(tm);tm=setTimeout(()=>{const id=document.activeElement&&document.activeElement.dataset;const r=id&&id.r,c=id&&id.c;rerender().then(()=>{if(r!=null){const el=app.querySelector(`input.pt[data-r="${r}"][data-c="${c}"]`);if(el){el.focus();}}});},900);});
   app.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{S.tRows.splice(+b.dataset.del,1);if(!S.tRows.length)S.tRows.push(['','']);rerender();});
   $('#tAdd').onclick=()=>{S.tRows.push(['','']);rerender().then(()=>{const el=app.querySelector(`input.pt[data-r="${S.tRows.length-1}"][data-c="0"]`);if(el)el.focus();});};
@@ -1142,7 +1143,7 @@ async function viewTerrain(){
   app.querySelectorAll('[data-wo]').forEach(b=>b.onclick=()=>{S.wOrder=b.dataset.wo;rerender();});
   app.querySelectorAll('[data-wm]').forEach(b=>b.onclick=()=>{S.wMode=b.dataset.wm;rerender();});
   $('#tName').oninput=e=>{S.tName=e.target.value;};
-  $('#tLink').onchange=e=>{S.tExitLink=e.target.value;};
+
   app.querySelectorAll('[data-tsu]').forEach(btn=>btn.onclick=()=>{S.suit=btn.dataset.tsu;rerender();});
   $('#tEx').onchange=e=>{S.tExit=e.target.value;rerender();};
   $('#tIncl').onchange=e=>{S.tInclEx=e.target.checked;rerender();};
@@ -1151,7 +1152,7 @@ async function viewTerrain(){
   app.querySelectorAll('[data-tpk]').forEach(c=>c.onchange=()=>{const cur=manual?S.tPick.slice():pool.map(j=>j.id);const id=c.dataset.tpk;S.tPick=c.checked?[...new Set([...cur,id])]:cur.filter(x=>x!==id);if(!S.tPick.length)S.tPick=['__none__'];S.tPickOpen=true;rerender();});
   app.querySelectorAll('[data-tp]').forEach(b=>b.onclick=()=>{const k=b.dataset.tp;S.tPickOpen=true;if(k==='all')S.tPick=all.map(j=>j.id);else if(k==='none')S.tPick=['__none__'];else if(k==='exit')S.tPick=all.filter(j=>j.exitName===S.tExit).map(j=>j.id);else S.tPick=null;rerender();});
   const sv=$('#tSave');if(sv)sv.onclick=async()=>{const name=($('#tName').value||'').trim()||'Pared sin nombre';if(T.length<2){$('#tMsg').textContent='Hacen falta al menos dos puntos.';return;}
-    const id=saved?saved.id:('t'+Date.now());const doc={name,points:T,exit:S.tExitLink||'',updatedAt:Date.now()};if(saved&&saved.source)doc.source=saved.source;
+    const id=saved?saved.id:('t'+Date.now());const doc={name,points:T,exit:saved?(saved.exit||''):'',updatedAt:Date.now()};if(saved&&saved.source)doc.source=saved.source;
     try{if(S.db&&S.canWrite)await S.db.doc('terrain/'+id).set(doc);else{S.terrain=[...(S.terrain||[]).filter(t=>t.id!==id),{id,...doc}];}
       S.tSel=id;S.tRowsFor=id;$('#tMsg').textContent='Guardada';if(!S.db)rerender();}catch(e){$('#tMsg').textContent='No se pudo guardar.';}};
   const dl=$('#tDel');if(dl)dl.onclick=()=>{$('#tDelZone').innerHTML='¿Borrar esta pared? <button class="btn danger small" id="tYes">Borrar</button> <button class="btn small" id="tNo">Cancelar</button>';
