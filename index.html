@@ -259,6 +259,9 @@ table.nums td.warn{color:var(--warn);font-weight:600}
 table.nums tr.mk td{background:color-mix(in srgb,var(--c2) 10%,transparent);font-weight:600}
 table.nums td .dot{margin-right:6px}
 .pts2 small.mg{display:block;font-size:11.5px;font-weight:600;opacity:.95}
+.morej{margin-top:8px}
+.morej summary{list-style:none;display:inline-flex}.morej summary::-webkit-details-marker{display:none}
+.morej[open] summary{margin-bottom:8px}
 .walls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
 .wall{display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 12px;cursor:pointer;text-align:left;max-width:100%}
 .wall b{font-family:var(--f-display);font-size:17px;font-weight:600}
@@ -1197,7 +1200,12 @@ async function viewTerrain(){
     const avgRows=sh==='avg'?groups.filter(g=>g.list.length).map(g=>{const L=g.list;const av=L.reduce((a,r)=>a+r.min,0)/L.length;return `<tr class="mk"><td>${multi?`<span class="dot" style="background:${g.color}"></span>`:''}<b>Media${multi?' '+esc(g.name):''}</b> <span class="muted">${L.length} saltos</span> <span class="tag mkt">Marcado arriba</span></td><td class="r ${cls(av)}">${fmt(av)} m</td><td class="r">—</td><td class="r">—</td></tr>`;}).join(''):'';
     const order=[...marked.keys(),...ok.filter(r=>!marked.has(r))];
     const row=r=>{const g=marked.get(r);const gc=multi?groups.find(x=>x.list.includes(r)):null;return `<tr class="${g?'mk':''}"><td>${gc?`<span class="dot" style="background:${gc.color}"></span>`:''}<a href="#s-${r.j.id}">#${r.j._n} ${esc(r.j.exitName||'Sin nombre')}</a> <span class="muted">${fDate(r.j.exitTime)}${multi&&r.j.suit?' · '+esc(r.j.suit):''}</span>${r.j.excluded?' <span class="tag nc">No cuenta</span>':''}${g?` <span class="tag mkt">${sh==='worst'?'Peor':'Mejor'}${multi?' '+esc(g.name):''} · marcado arriba</span>`:''}</td><td class="r ${cls(r.min)}">${fmt(r.min)} m</td><td class="r">${H?'al caer '+fmt(r.at):'a '+fmt(r.at)} m</td><td class="r">${r.covers?'Sí':H?`abre tras caer ${fmt(r.P.dr[r.P.dr.length-1])} m`:`abre a ${fmt(r.P.reach)} m`}</td></tr>`;};
-    $('#tJumps').innerHTML=`<div class="tablewrap"><table class="nums"><thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead><tbody>${avgRows}${order.map(row).join('')}</tbody></table></div>`;}
+    const thead=`<thead><tr><th>Salto</th><th class="r">Margen ${H?'horizontal':'vertical'} mínimo</th><th class="r">Dónde</th><th class="r">Cubre el perfil</th></tr></thead>`;
+    const top=[...marked.keys()],rest=ok.filter(r=>!marked.has(r));
+    const restL=sh==='all'?ok:rest;
+    $('#tJumps').innerHTML=`${avgRows||top.length?`<div class="tablewrap"><table class="nums">${thead}<tbody>${avgRows}${top.map(row).join('')}</tbody></table></div>`:''}
+      <details class="morej" ${S.tJOpen?'open':''}><summary class="btn small">${S.tJOpen?'Ocultar':'Ver'} ${sh==='all'?'todos los saltos':'el resto de saltos'} (${restL.length})</summary><div class="tablewrap"><table class="nums">${thead}<tbody>${restL.map(row).join('')}</tbody></table></div></details>`;
+    const dj=app.querySelector('.morej');if(dj)dj.addEventListener('toggle',e=>{S.tJOpen=e.target.open;const sm=dj.querySelector('summary');sm.textContent=sm.textContent.replace(/^(Ver|Ocultar)/,e.target.open?'Ocultar':'Ver');});}
   // gráfica
   const show=S.tShow||'worst';
   const avgOf=L=>{if(!L.length)return null;let P;if(!H){const mx=Math.max(...L.map(r=>r.P.reach));const xs=[],ys=[];for(let x=0;x<=mx;x+=Math.max(1,mx/250)){const v=L.map(r=>dropAt(r.P,x)).filter(q=>q!=null);if(v.length<Math.max(1,L.length/2))break;xs.push(x);ys.push(v.reduce((a,b)=>a+b,0)/v.length);}P={hd:xs,dr:ys,reach:xs[xs.length-1]||0};}
